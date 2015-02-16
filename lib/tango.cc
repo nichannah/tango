@@ -37,6 +37,7 @@ typedef struct description {
 
 static transaction *curr_transaction;
 static char* grid_name;
+static int my_rank, num_procs;
 
 static void pack_description();
 static void pack_description(int rank, isd, ied, jsd, jed, const char *name,
@@ -60,25 +61,28 @@ static void pack_description(int rank, isd, ied, jsd, jed, const char *name,
 void tango_init(const char *name, unsigned int isd, unsigned int ied,
                 unsigned int jsd, unsigned int jed)
 {
-    int my_rank, size;
     desc_type my_description;
     MPI_Datatype desc_type_mpi;
 
     curr_transaction = NULL;
     grid_name = name;
 
+    /* Parse config file for this grid. This will give us a global id of for
+     * each grid (based on the name). */
+
+    /* We have to build up a routing table. For each variable we need two
+     * lists: 1) a list of ranks to send it to, 2) a list of ranks to receive
+     * it from. */
+
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
 
     /* Construct description string for this proc. */
     pack_description(my_rank, isd, ied, jsd, jed, grid_name, &my_description);
-    MPI_Type_contiguous(sizeof(desc_type), MPI_CHAR, &desc_type_mpi); 
+    MPI_Type_contiguous(sizeof(desc_type), MPI_CHAR, &desc_type_mpi);
     MPI_Type_commit(&desc_type_mpi);
 
     if (my_rank == 0) {
-        /* Parse config file for this grid. */
-
-        /* Read in remapping weights file. */
 
         /* Get proc descriptions. */
         all_descriptions = new desc_type[size];
@@ -86,10 +90,10 @@ void tango_init(const char *name, unsigned int isd, unsigned int ied,
                    all_descriptions, size, desc_type_mpi,
                    0, MPI_COMM_WORLD);
 
-        /* Tell each proc who they should send to. */
+        /* Send each proc a list of send to. */
 
         /* Tell each proc who they should recv from. */
-        
+
     } else {
         /* Each rank will be associated with a grid, send my description to the
          * root process. */
@@ -129,6 +133,7 @@ void tango_get(const char *name, double array[], int size)
 void tango_end_transfer()
 {
     double *send_buf, *recv_buf;
+    int sender;
     field *f;
     unsigned int offset;
 
@@ -143,8 +148,7 @@ void tango_end_transfer()
 
     /* We are a sender */
     if (curr_transaction->total_send_size != 0) {
-        /* Get rank of sender. */
-        MPI_Comm_rank(MPI_COMM_WORLD, &sender);
+        sender = my_rank;
 
         /* Copy over all send fields to a single buffer. */
         send_buf = new double[curr_transaction->total_send_size];

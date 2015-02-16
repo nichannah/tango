@@ -2,6 +2,11 @@
 
 from __future__ import print_function
 
+import sys
+import argparse
+import numpy as np
+import netCDF4 as nc
+
 """
 Create a NetCDF grid definition file in SCRIP format. The grid created is a
 standard lat-lon grid.
@@ -18,10 +23,10 @@ class LatLonGrid:
         self.corners = 4
 
         # Set lats and lons.
-        self.lon = np.linspace(0, 360, num_lon_points, endpoint=False)
-        self.lat = np.linspace(-90, 90, num_lat_points)
-        dx_half = 360.0 / num_lon_points / 2.0
-        dy_half = (180.0 / (num_lat_points - 1) / 2.0)
+        self.lon = np.linspace(0, 2*np.pi, num_lon_points, endpoint=False)
+        self.lat = np.linspace(-np.pi / 2, np.pi / 2, num_lat_points)
+        dx_half = 2*np.pi / num_lon_points / 2.0
+        dy_half = np.pi / num_lat_points / 2.0
 
         # Similar to lon, lat but specify the coordinate at every grid
         # point. Also it wraps along longitude.
@@ -50,13 +55,13 @@ class LatLonGrid:
 
             # The bottom latitude band should always be Southern extent, for
             # all t, u, v.
-            clat[0, 0, :] = -90
-            clat[1, 0, :] = -90
+            clat[0, 0, :] = -np.pi / 2
+            clat[1, 0, :] = -np.pi / 2
 
             # The top latitude band should always be Northern extent, for all
             # t, u, v.
-            clat[2, -1, :] = 90
-            clat[3, -1, :] = 90
+            clat[2, -1, :] = np.pi / 2
+            clat[3, -1, :] = np.pi / 2
 
             assert(not np.isnan(np.sum(clat)))
 
@@ -64,30 +69,54 @@ class LatLonGrid:
 
         self.clon, self.clat = make_corners(self.x, self.y, dx_half, dy_half)
 
+        import pdb
+        pdb.set_trace()
 
-    def write(self, output):
+
+    def write(self, command, output):
         """
         Create the netcdf file and write the output.
         """
 
-        if mask is None:
-            # Write
+        f = nc.Dataset(output, 'w+')
+        f.createDimension('grid_size', FIXME)
+        f.createDimension('grid_corners', 4)
+        f.createDimension('grid_rank', 2)
 
+        f.createVariable('grid_dims', 'i4', ('grid_rank'))
+        center_lat = f.createVariable('grid_center_lat', 'f8', ('grid_size'))
+        center_lat.units = 'radians'
+        center_lon = f.createVariable('grid_center_lon', 'f8', ('grid_size'))
+        center_lon.units = 'radians'
+        imask = f.createVariable('grid_imask', 'i4', ('grid_size'))
+        imask.units = 'unitless'
+        corner_lat = f.createVariable('grid_corner_lat', 'f8', ('grid_size', 'grid_corners'))
+        corner_lat.units = 'radians'
+        corner_lon = f.createVariable('grid_corner_lon', 'f8', ('grid_size', 'grid_corners'))
+        corner_lon.units = 'radians'
 
+        f.title = '{}x{} rectangular grid'.format()
+        f.history = command
+
+        if mask is not None:
+            pass
+
+        f.close()
 
 
 def main():
 
-    args = parser.parse_args()
 
+    parser = argparse.ArgumentParser()
     parser.add_argument("output", help="The output file name.")
-    parser.add_argument("--lon_points", default=192, help="""
+    parser.add_argument("--lon_points", default=1, help="""
                         The number of longitude points.
                         """)
-    parser.add_argument("--lat_points", default=145, help="""
+    parser.add_argument("--lat_points", default=1, help="""
                         The number of latitude points.
                         """)
     parser.add_argument("--mask", default=None, help="The mask file name.")
+    args = parser.parse_args()
 
     mask = None
     if args.mask is not None:
@@ -95,7 +124,7 @@ def main():
         pass
 
     grid = LatLonGrid(args.lon_points, args.lat_points, mask)
-    grid.write(args.output)
+    grid.write(' '.join(sys.argv), args.output)
 
     return 0
 
