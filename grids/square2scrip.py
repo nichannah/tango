@@ -24,7 +24,7 @@ class LatLonGrid:
         self.mask = mask;
 
         if mask is None:
-            self.mask = np.zeros((num_lon_points, num_lat_points))
+            self.mask = np.ones((num_lon_points, num_lat_points))
 
         dx = 360.0 / num_lon_points
         dy = 180.0 / num_lat_points
