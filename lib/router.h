@@ -7,6 +7,8 @@
 
 using namespace std;
 
+/* FIXME: split out into a separate Grid class? */
+
 class Router {
 private:
     int my_rank;
@@ -14,6 +16,7 @@ private:
     int num_procs;
     unsigned int grid_id;
     unsigned int gis, gie, gjs, gje, lis, lie, ljs, lje;
+    vector<unsigned int> grid_points;
 
     /* The routing information is kept in a collection of maps. */
 
