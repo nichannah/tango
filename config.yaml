@@ -1,0 +1,18 @@
+
+grids:
+    - name: ocean
+      destinations:
+        - name: ice
+          vars: [sst]
+
+    - name: atm
+      destinations:
+        - name: ice
+          vars: [temp, swflux]
+
+    - name: ice
+      destinations:
+        - name: ocean
+          vars: [temp, swflux]
+        - name: atm
+          vars: [sst]

@@ -1,108 +1,60 @@
 #include <queue>
 #include <assert.h>
 #include <mpi.h>
+
 #include "tango.h"
+#include "router.h"
 
-#define MAX_GRID_NAME_LEN 32
+using namespace std;
 
-class field {
+class Field {
 public:
     double *buffer;
     unsigned int size;
-    field(double *buf, unsigned int buf_size);
+    Field(double *buf, unsigned int buf_size);
 };
 
-field::field(double *buf, unsigned int buf_size)
+Field::Field(double *buf, unsigned int buf_size)
     : buffer(buf), size(buf_size) {}
 
-class transaction {
+class Transaction {
 private:
     int curr_time;
     int sender;
 public:
     unsigned int total_send_size;
     unsigned int total_recv_size;
-    std::queue<field *> to_transfer;
-    transaction(int time);
+    queue<Field *> to_transfer;
+    Transaction(int time);
 };
 
-transaction::transaction(int time)
+Transaction::Transaction(int time)
     : curr_time(time), total_send_size(0), total_recv_size(0) {}
 
-typedef struct description {
-    unsigned int rank;
-    unsigned int isd, ied, jsd, jed;
-    char grid_name[MAX_GRID_NAME_LEN];
-} desc_type;
+static Transaction *curr_transaction;
+static Router *router;
 
-static transaction *curr_transaction;
-static char* grid_name;
-static int my_rank, num_procs;
-
-static void pack_description();
-static void pack_description(int rank, isd, ied, jsd, jed, const char *name,
-                             desc_type *desc)
+/* Pass in the grid name, the extents of the global domain and the extents of
+ * the local domain that this proc is responsible for. */
+void tango_init(const char *grid_name,
+                /* Global domain */
+                unsigned int gis, unsigned int gie,
+                unsigned int gjs, unsigned int gje,
+                /* Local  domain */
+                unsigned int lis, unsigned int lie,
+                unsigned int ljs, unsigned int lje)
 {
-    unsigned int i;
-
-    desc->rank = rank;
-    desc->isd = isd;
-    desc->ied = ied;
-    desc->jsd = jsd;
-    desc->jed = jed;
-
-    assert(strlen(name) < MAX_GRID_NAME_LEN);
-    bzero(desc->grid_name, MAX_GRID_NAME_LEN);
-    strcpy(desc->grid_name, name);
-}
-
-/* Pass in the grid name and the extents of the compute domain that this proc
- * is responsible for. */ 
-void tango_init(const char *name, unsigned int isd, unsigned int ied,
-                unsigned int jsd, unsigned int jed)
-{
-    desc_type my_description;
-    MPI_Datatype desc_type_mpi;
-
     curr_transaction = NULL;
-    grid_name = name;
 
-    /* Parse config file for this grid. This will give us a global id of for
-     * each grid (based on the name). */
+    /* FIXME: what to do about Fortran indexing convention here. For the time
+     * being stick to C++/Python. */
 
-    /* We have to build up a routing table. For each variable we need two
-     * lists: 1) a list of ranks to send it to, 2) a list of ranks to receive
-     * it from. */
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-
-    /* Construct description string for this proc. */
-    pack_description(my_rank, isd, ied, jsd, jed, grid_name, &my_description);
-    MPI_Type_contiguous(sizeof(desc_type), MPI_CHAR, &desc_type_mpi);
-    MPI_Type_commit(&desc_type_mpi);
-
-    if (my_rank == 0) {
-
-        /* Get proc descriptions. */
-        all_descriptions = new desc_type[size];
-        MPI_Gather(my_description, 1, desc_type_mpi,
-                   all_descriptions, size, desc_type_mpi,
-                   0, MPI_COMM_WORLD);
-
-        /* Send each proc a list of send to. */
-
-        /* Tell each proc who they should recv from. */
-
-    } else {
-        /* Each rank will be associated with a grid, send my description to the
-         * root process. */
-        MPI_Gather(my_description, MAX_DESCRIPTION_LEN, MPI_CHAR,
-                   descriptions, 0, MPI_CHAR, 0, MPI_COMM_WORLD);
-    }
+    /* Build the router. */
+    router = new Router(grid_name, gis, gie, gjs, gje, lis, lie, ljs, lje);
+    router.build_rules();
 }
 
-void tango_begin_transfer(int time)
+void tango_begin_transfer(int time, const char* with_grid)
 {
     assert(curr_transaction == NULL);
     curr_transaction = new transaction(time);
@@ -191,4 +143,5 @@ void tango_end_transfer()
 void tango_finalize()
 {
     assert(curr_transaction == NULL);
+    delete(router);
 }
