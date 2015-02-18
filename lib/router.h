@@ -3,7 +3,7 @@
 
 #include <map>
 #include <vector>
-#include <list>
+#include <set>
 
 using namespace std;
 
@@ -16,7 +16,7 @@ private:
     int num_procs;
     unsigned int grid_id;
     unsigned int gis, gie, gjs, gje, lis, lie, ljs, lje;
-    vector<unsigned int> grid_points;
+    set<unsigned int> grid_points;
 
     /* The routing information is kept in a collection of maps. */
 

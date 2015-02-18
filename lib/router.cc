@@ -29,15 +29,30 @@ Router::Router(string name, int gis, int gie, int gjs, int gje,
       this.gis(gis), this.gie(gie), this.gjs(gjs), this.gje(gje)
       this.lis(lis), this.lie(lie), this.ljs(ljs), this.lje(lje)
 {
+
     /* This is useful to know. */
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
 
     /* Convert the local domain into a 1-D array of global indices. e.g. on a
      * 2x2 grid the indices would be:
+     * | 3 | 4 |
      * | 1 | 2 |
-     * | 3 | 4 | */
+     * This is how the ESMF remapping files index points. */
 
+    int n_cols = gje - gjs
+    int n_local_rows = lie - lis; 
+    int i_offset = lis - gis;
+    int j_offset = ljs - gjs;
+
+    for (int i = i_offset; i < n_local_rows; i++) {
+        int index = (n_cols * i) + j_offset;
+
+        for (int j = ljs; j < lje; j++) {
+            grid_points.insert(index); 
+            index++;
+        }
+    }
 }
 
 /* Parse yaml config file. Find out which grids communicate and through which

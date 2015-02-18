@@ -33,7 +33,7 @@ class LatLonGrid:
 
         # Set lats and lons.
         self.lon = np.linspace(0, 360, num_lon_points, endpoint=False)
-        # lat points exclude the poles. 
+        # lat points exclude the poles.
         self.lat = np.linspace(-90 + dy_half, 90 - dy_half, num_lat_points)
 
         # Similar to lon, lat but specify the coordinate at every grid
