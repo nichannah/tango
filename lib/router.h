@@ -33,8 +33,10 @@ private:
 
     /* Local points that need to be sent to this remote proc. */
     vector<point> send_points;
+    /* Local points that will be received from this remote proc. */
+    vector<point> recv_points;
     /* Corrosponding weights for the points above. */
-    vector<weight> send_weights;
+    vector<weight> weights;
 public:
     RemoteProc(unsigned int description);
     bool no_send_points(void) { return send_points.empty() };

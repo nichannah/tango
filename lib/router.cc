@@ -85,7 +85,7 @@ void Router::parse_config(void)
 
 /* Pack a description of this proc and broadcast it to all others. They'll use
  * the information to set up their routers. */
-void Router::build_descriptions(void)
+void Router::exchange_descriptions(void)
 {
     unsigned int description[DESCRIPTION_SIZE];
     unsigned int *all_descs;
@@ -130,48 +130,71 @@ void Router::build_descriptions(void)
     delete(all_descs);
 }
 
+void Router::read_netcdf(string filename, int *src_points, int *dest_points,
+                         double *weigts)
+{
+    /* open the remapping weights file */
+    NcFile rmp_file(filename, NcFile::read);
+    NcVar src_var = rmp_file.getVar("col");
+    NcVar dest_var = rmp_file.getVar("row");
+    NcVar weights_var = rmp_file.getVar("S");
+
+    /* Assume that these are all 1 dimensional. */
+    int src_size = src_var.getDim(0).getSize();
+    int dest_size = src_var.getDim(0).getSize();
+    int weights_size = src_var.getDim(0).getSize();
+    assert(src_size == dest_size == weights_size);
+
+    src_points = new int[src_size];
+    dest_points = new int[dest_size];
+    weights = new double[weights_size];
+
+    src_var.getVar(src_points);
+    dest_var.getVar(dest_points);
+    weights_var.getVar(weights);
+}
+
+void Router::clean_unreferenced_remote_procs(list<RemoteProc> &to_clean)
+{
+    list<RemoteProc>::iterator it = to_clean.begin();
+    while (1) {
+        if (*it.no_send_points()) {
+            it = dest_map[grid].erase(it);
+        }
+        if (it == dest_map[grid].end()) {
+            break;
+        }
+
+        it++;
+    }
+}
+
 void Router::build_rules(void)
 {
     parse_config();
-    broadcast_descriptions();
+    exchange_descriptions();
+
+    int *src_points;
+    int *dest_points;
+    double *weights;
 
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the routing maps. */
 
     /* Iterate over all the grids that we send to. */
     for (auto& grid : dest_grids) {
-
-        /* open the remapping weights file corrosponding to
-         * <my_name>_to_<dest_name>_rmp.nc */
-        NcFile rmp_file(my_name + "_to_" + grid + "_rmp.nc", NcFile::read);
-        NcVar src_var = rmp_file.getVar("col");
-        NcVar dest_var = rmp_file.getVar("row");
-        NcVar weights_var = rmp_file.getVar("S");
-
-        /* Assume that these are all 1 dimensional. */
-        int src_size = src_var.getDim(0).getSize();
-        int dest_size = src_var.getDim(0).getSize();
-        int weights_size = src_var.getDim(0).getSize();
-        assert(src_size == dest_size == weights_size);
-
-        int *src_points = new int[src_size];
-        int *dest_points = new int[dest_size];
-        int *weights = new double[weights_size];
-
-        src_var.getVar(src_points);
-        dest_var.getVar(dest_points);
-        weights_var.getVar(weights);
-        
+        read_netcdf(my_name + "_to_" + grid + "_rmp.nc",
+                    src_points, dest_grids, weights); 
+       
         /* For all points that this proc is responsible for, figure out which
-         * proc it needs to be mapped to ...  */
+         * procs it needs to send to.  */
         for (auto point : local_points) {
-        
             for (int i = 0; i < src_points; i++) {
                 if ((src_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
 
                     /* Search through the remote procs and find the one that is
-                     * responsible for the dest_points that corresponds to this
+                     * responsible for the dest_point that corresponds to this
                      * src_point. */
                     for (auto const &rp : dest_map[grid]) {
                         if (rp.has_global_point(dest_points[i])) {
@@ -185,24 +208,44 @@ void Router::build_rules(void)
             }
         }
 
+        delete(src_points);
+        delete(dest_points);
+        delete(weights);
         /* Now clean up all the unused RemoteProcs that were inserted in
-         * build_descriptions(). */
-        list<RemoteProc>::iterator it = dest_map[grid].begin();
-        while (1) {
-            if (*it.no_send_points()) {
-                it = dest_map[grid].erase(it);
-            }
-            if (it == dest_map[grid].end()) {
-                break;
-            }
+         * exchange_descriptions(). */
+        clean_unreferenced_remote_procs(dest_map[grid]);
+    }
 
-            it++;
+    /* Iterate over all the grids that we receive from. */
+    for (auto& grid : src_grids) {
+        read_netcdf(grid + "_to_" + my_name + "_rmp.nc",
+                    src_points, dest_grids, weights); 
+
+        /* For all points that this proc is responsible for, figure out which
+         * procs it needs to receive from. */
+        for (auto point : local_points) {
+            for (int i = 0; i < dest_points; i++) {
+                if ((dest_points[i] == point) &&
+                    (weights[i] > WEIGHT_THRESHOLD)) {
+
+                    /* Search through the remote procs and find the one that is
+                     * responsible for the src_point that corresponds to this
+                     * dest_point. */
+                    for (auto const &rp : src_map[grid]) {
+                        if (rp.has_global_point(src_points[i])) {
+                            /* Add to the list of points and weights. */
+                            rp.recv_points.push_back(dest_points[i]);
+                            rp.weights.push_back(weights[i]);
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         delete(src_points);
         delete(dest_points);
         delete(weights);
+        clean_unreferenced_remote_procs(src_map[grid]);
     }
-
-    /* Now do the above for receiving! */
 }
