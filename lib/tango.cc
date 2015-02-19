@@ -33,6 +33,8 @@ public:
 Transfer::Transfer(int time, string peer)
     : curr_time(time), peer_grid(peer), total_send_size(0), total_recv_size(0) {}
 
+/* FIXME: this should be a map, indexed by grid name. This will allow multiple
+ * tango_init's per executable, necessary for send_self. */
 static Transfer *transfer;
 static Router *router;
 
@@ -54,7 +56,7 @@ void tango_init(const char *grid_name,
     /* Build the router. */
     router = new Router(string(grid_name), lis, lie, ljs, lje,
                         gis, gie, gjs, gje);
-    router.build_rules();
+    router.build_routing_rules();
 }
 
 void tango_begin_transfer(int time, const char* grid)

@@ -12,14 +12,14 @@ using namespace netCDF;
 
 RemoteProc::RemoteProc(unsigned int grid_id, unsigned int rank,
                        int lis, int lie, int ljs, int lje)
-    : this.rank(rank), this.grid_id(grid_id), 
+    : this.rank(rank), this.grid_id(grid_id),
       this.lis(lis), this.lie(lie), this.ljs(ljs), this.lje(lje)
 {
 }
 
 Router::Router(string name, int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje)
-    : grid_name(name), 
+    : grid_name(name),
       this.lis(lis), this.lie(lie), this.ljs(ljs), this.lje(lje),
       this.gis(gis), this.gie(gie), this.gjs(gjs), this.gje(lje)
 {
@@ -27,12 +27,12 @@ Router::Router(string name, int lis, int lie, int ljs, int lje,
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
 
-    my_grid = name; 
+    my_grid = name;
 
     /* Set up list of points that this proc is responsible for with a global
      * reference. */
     int n_cols = gje - gjs
-    int n_local_rows = lie - lis; 
+    int n_local_rows = lie - lis;
     int i_offset = lis - gis;
     int j_offset = ljs - gjs;
 
@@ -40,7 +40,7 @@ Router::Router(string name, int lis, int lie, int ljs, int lje,
         int index = (n_cols * i) + j_offset;
 
         for (int j = ljs; j < lje; j++) {
-            points.insert(index); 
+            points.insert(index);
             index++;
         }
     }
@@ -160,16 +160,18 @@ void Router::clean_unreferenced_remote_procs(list<RemoteProc> &to_clean)
     while (1) {
         if (*it.no_send_points()) {
             it = dest_map[grid].erase(it);
+        } else {
+            it++;
         }
+
         if (it == dest_map[grid].end()) {
             break;
         }
-
-        it++;
     }
 }
 
-void Router::build_rules(void)
+/* Will need to build different rules for the send_local case. */
+void Router::build_routing_rules(void)
 {
     parse_config();
     exchange_descriptions();
@@ -181,13 +183,23 @@ void Router::build_rules(void)
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the routing maps. */
 
+    /* FIXME: performance may be a problem here. This loop is going to take in
+     * the order of seconds for a 1000x1000 grid with 1000 procs, it may
+     * not scale well to larger grids. Ways to improve performance:
+     * 1. Set up a point -> proc map. This could be several Mb in size.
+     * 2. Figure out the maximum number of times a local point can appear as a
+     *    source point, exit loop after this number is reached.
+     * 3. Tune to the particular layout of the remapping file, e.g. it looks
+     *    like the dest points are presented in consecutive order. */
+
     /* Iterate over all the grids that we send to. */
     for (auto& grid : dest_grids) {
         read_netcdf(my_name + "_to_" + grid + "_rmp.nc",
-                    src_points, dest_grids, weights); 
-       
+                    src_points, dest_grids, weights);
+
         /* For all points that this proc is responsible for, figure out which
-         * procs it needs to send to.  */
+         * procs it needs to send to. FIXME: some kind of check that all our
+         * local points are covered. */
         for (auto point : local_points) {
             for (int i = 0; i < src_points; i++) {
                 if ((src_points[i] == point) &&
@@ -219,7 +231,7 @@ void Router::build_rules(void)
     /* Iterate over all the grids that we receive from. */
     for (auto& grid : src_grids) {
         read_netcdf(grid + "_to_" + my_name + "_rmp.nc",
-                    src_points, dest_grids, weights); 
+                    src_points, dest_grids, weights);
 
         /* For all points that this proc is responsible for, figure out which
          * procs it needs to receive from. */
