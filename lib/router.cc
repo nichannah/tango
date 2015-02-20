@@ -1,31 +1,21 @@
 
 #include <assert.h>
 #include <mpi.h>
-#include <netcdf>
+#include <netcdfcpp.h>
 
 #include "router.h"
-
-using namespace netCDF;
 
 #define MAX_GRID_NAME_SIZE 32
 #define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 1 + 9)
 #define WEIGHT_THRESHOLD 1e12
 
-Grid::Grid(string name) : this.name(name) {}
-Grid::~Grid()
-{
-    /* This should never happen. */
-    assert(false);
-}
-
-Tile::Tile(tile_id_t id,
-           int lis, int lie, int ljs, int lje,
+Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje)
-    : this.id(id), this.lis(lis), this.lie(lie), this.ljs(ljs), this.lje(lje)
+    : id(tile_id), lis(lis), lie(lie), ljs(ljs), lje(lje)
 {
     /* Set up list of points that this tile is responsible for with a global
      * reference. */
-    int n_cols = gje - gjs
+    int n_cols = gje - gjs;
     int n_local_rows = lie - lis;
     int i_offset = lis - gis;
     int j_offset = ljs - gjs;
@@ -34,105 +24,29 @@ Tile::Tile(tile_id_t id,
         int index = (n_cols * i) + j_offset;
 
         for (int j = ljs; j < lje; j++) {
-            points.insert(index);
+            points.push_back(index);
             index++;
         }
     }
 }
 
-CouplingManager::CouplingManager(string grid_name,
-                                 int lis, int lie, int ljs, int lje,
-                                 int gis, int gie, int gjs, int gje)
-{
-    list<grid_id> dest_grids, src_grids;
-
-    parse_config(dest_grids, src_grids);
-    router = Router(grid_name, dest_grids, src_grids,
-                    lis, lie, ljs, lje, gis, gie, gjs, gje);
-    router.exchange_descriptions()
-    router.build_routing_rules();
-}
-
-/* Parse yaml config file. Find out which grids communicate and through which
- * fields. */
-void CouplingManager::parse_config(list<grid_id>& dest_grids,
-                                   list<grid_id>& src_grids)
-{
-    ifstream config_file;
-    YAML::Node grids, destinations, fields;
-
-    config_file.open("config.yaml");
-    grids = YAML::Load(config_file)["grids"];
-
-    /* Iterate over grids. */
-    for (size_t i = 0; i < grids.size(); i++) {
-        string src_grid = grids[i]["name"];
-
-        /* Iterate over destinations for this grid. */
-        destinations = grids[i]["destinations"];
-        for (size_t j = 0; j < destinations.size(); j++) {
-            string dest_grid = destinations[j]["name"];
-
-            /* Not allowed to send to self (yet) */
-            assert(dest_grid != src_grid);
-
-            if (my_grid_name == src_grid) {
-                dest_grids.push_back(dest_grid);
-            } else if (my_grid_name == dest_grid) {
-                src_grids.push_back(src_grid);
-            }
-
-            /* Iterate over fields for this destination. */
-            for (size_t k = 0; k < fields.size(); k++) {
-                field_name = fields[k];
-
-                if (my_grid_name == grid_name) {
-                   dest_grid_to_fields[dest_name].push_back(field_name);
-                } else if (my_grid_name == dest_name)
-                   src_grid_to_fields[grid_name].push_back(field_name);
-                }
-            }
-        }
-    }
-}
-
-bool CouplingManager::can_send_field_to_grid(string field, string grid)
-{
-    for (const auto &f : dest_grid_to_fields[grid]) {
-        if (f == field) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool CouplingManager::can_recv_field_from_grid(string field, string grid)
-{
-    for (const auto &f : src_grid_to_fields[grid]) {
-        if (f == field) {
-            return true;
-        }
-    }
-    return false;
-}
-
-
 Router::Router(string grid_name,
-               list<string>& dest_grids, list<string>& src_grids, 
+               list<string>& dest_grid_names, list<string>& src_grid_names, 
                int lis, int lie, int ljs, int lje,
-               int gis, int gie, int gjs, int gje) : this.grid_name(grid_name)
+               int gis, int gie, int gjs, int gje) : local_grid_name(grid_name)
 {
     tile_id_t tile_id;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &tile_id);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 
-    tile = Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
-    for (auto id : dest_grid_ids) {
+    local_tile = new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
+    for (const auto& grid_name : dest_grid_names) {
         assert(dest_grids.find(grid_name) == dest_grids.end());
         dest_grids[grid_name] = Grid(grid_name);
     }
-    for (auto id : src_grid_ids) {
-        assert(src_grids.find(id) == src_grids.end());
+    for (const auto& grid_name : src_grid_names) {
+        assert(src_grids.find(grid_name) == src_grids.end());
         src_grids[grid_name] = Grid(grid_name);
     }
 }
@@ -156,26 +70,25 @@ void Router::exchange_descriptions(void)
             description[i] = '\0';
         }
     }
-    description[i++] = local_tile.id;
-    description[i++] = local_tile.lis;
-    description[i++] = local_tile.lie;
-    description[i++] = local_tile.ljs;
-    description[i++] = local_tile.lje;
-    description[i++] = local_tile.gis;
-    description[i++] = local_tile.gie;
-    description[i++] = local_tile.gjs;
-    description[i++] = local_tile.gje;
+    description[i++] = local_tile->id;
+    description[i++] = local_tile->lis;
+    description[i++] = local_tile->lie;
+    description[i++] = local_tile->ljs;
+    description[i++] = local_tile->lje;
+    description[i++] = local_tile->gis;
+    description[i++] = local_tile->gie;
+    description[i++] = local_tile->gjs;
+    description[i++] = local_tile->gje;
 
     /* Distribute all_descriptions. */
-    all_descs = new unsigned int[DESCRIPTION_SIZE * num_procs];
-    MPI_Gather(description, DESCRIPTION_SIZE, MPI_UNSIGNED,
-               all_descriptions, DESCRIPTION_SIZE * num_procs,
-               MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-    MPI_Broadcast(all_descriptions, DESCRIPTION_SIZE * num_procs,
-                  MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    all_descs = new unsigned int[DESCRIPTION_SIZE * num_ranks];
+    MPI_Gather(description, DESCRIPTION_SIZE, MPI_UNSIGNED, all_descs,
+               DESCRIPTION_SIZE * num_ranks, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+    MPI_Bcast(all_descs, DESCRIPTION_SIZE * num_ranks, MPI_UNSIGNED,
+                  0, MPI_COMM_WORLD);
 
     /* Unmarshall into Tile objects. */
-    for (int i = 0; i < num_procs * DESCRIPTION_SIZE; i += DESCRIPTION_SIZE) {
+    for (int i = 0; i < num_ranks * DESCRIPTION_SIZE; i += DESCRIPTION_SIZE) {
 
         int j = i;
         string grid_name;
@@ -192,15 +105,15 @@ void Router::exchange_descriptions(void)
         if (is_dest_grid(grid_name)) {
             /* A tile could get big, so we make pointers and avoid copying. */
             Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
-                               all_descs[j++], all_descs[j++], all_descs[j++]
+                               all_descs[j++], all_descs[j++], all_descs[j++],
                                all_descs[j++], all_descs[j++], all_descs[j++]);
-             dest_grids[grid_id].tiles.push_back(t);
+             dest_grids[grid_name].tiles.push_back(t);
         }
         if (is_src_grid(grid_name)) {
             Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
-                               all_descs[j++], all_descs[j++], all_descs[j++]
+                               all_descs[j++], all_descs[j++], all_descs[j++],
                                all_descs[j++], all_descs[j++], all_descs[j++]);
-            src_grids[grid_id].tiles.push_back(t);
+            src_grids[grid_name].tiles.push_back(t);
         }
     }
 
@@ -261,7 +174,7 @@ void Router::build_routing_rules()
         /* For all points that the local tile is responsible for, figure out
          * which remote tiles it needs to send to. FIXME: some kind of check
          * that all our local points are covered. */
-        for (const auto point : local_tile.points) {
+        for (const auto point : local_tile->points) {
             for (int i = 0; i < src_points; i++) {
                 if ((src_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
@@ -360,3 +273,81 @@ bool Router::is_src_grid(string grid)
 
     return false;
 }
+
+CouplingManager::CouplingManager(string grid_name,
+                                 int lis, int lie, int ljs, int lje,
+                                 int gis, int gie, int gjs, int gje)
+{
+    list<string> dest_grids, src_grids;
+
+    parse_config(dest_grids, src_grids);
+    router = Router(grid_name, dest_grids, src_grids,
+                    lis, lie, ljs, lje, gis, gie, gjs, gje);
+    router.exchange_descriptions();
+    router.build_routing_rules();
+}
+
+/* Parse yaml config file. Find out which grids communicate and through which
+ * fields. */
+void CouplingManager::parse_config(list<string>& dest_grids,
+                                   list<string>& src_grids)
+{
+    ifstream config_file;
+    YAML::Node grids, destinations, fields;
+
+    config_file.open("config.yaml");
+    grids = YAML::Load(config_file)["grids"];
+
+    /* Iterate over grids. */
+    for (size_t i = 0; i < grids.size(); i++) {
+        string src_grid = grids[i]["name"];
+
+        /* Iterate over destinations for this grid. */
+        destinations = grids[i]["destinations"];
+        for (size_t j = 0; j < destinations.size(); j++) {
+            string dest_grid = destinations[j]["name"];
+
+            /* Not allowed to send to self (yet) */
+            assert(dest_grid != src_grid);
+
+            if (my_grid_name == src_grid) {
+                dest_grids.push_back(dest_grid);
+            } else if (my_grid_name == dest_grid) {
+                src_grids.push_back(src_grid);
+            }
+
+            /* Iterate over fields for this destination. */
+            for (size_t k = 0; k < fields.size(); k++) {
+                field_name = fields[k];
+
+                if (my_grid_name == grid_name) {
+                   dest_grid_to_fields[dest_name].push_back(field_name);
+                } else if (my_grid_name == dest_name)
+                   src_grid_to_fields[grid_name].push_back(field_name);
+                }
+            }
+        }
+    }
+}
+
+bool CouplingManager::can_send_field_to_grid(string field, string grid)
+{
+    for (const auto &f : dest_grid_to_fields[grid]) {
+        if (f == field) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool CouplingManager::can_recv_field_from_grid(string field, string grid)
+{
+    for (const auto &f : src_grid_to_fields[grid]) {
+        if (f == field) {
+            return true;
+        }
+    }
+    return false;
+}
+
+

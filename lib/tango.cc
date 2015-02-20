@@ -3,7 +3,7 @@
 #include <mpi.h>
 
 #include "tango.h"
-#include "tango_internal.h"
+#include "router.h"
 
 using namespace std;
 

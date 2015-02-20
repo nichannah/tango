@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <mpi.h>
 
+#include "tango.h"
+
 #define NUM_TIMESTEPS 50
 #define SECS_PER_TIMESTEP 2
 
@@ -11,8 +13,8 @@ int main(int argc, char* argv[])
     double *shortwave_flux;
     int i, time;
 
-    air_temp = (double*)malloc(1 * sizeof(double));
-    shortwave_flux = (double*)malloc(1 * sizeof(double));
+    air_temp = new double[10];
+    shortwave_flux = double[10];
 
     MPI_Init(&argc, &argv);
     tango_init();
@@ -30,6 +32,6 @@ int main(int argc, char* argv[])
     MPI_Finalize();
     tango_finalize();
 
-    free(air_temp);
-    free(shortwave_flux);
+    delete(air_temp);
+    delete(shortwave_flux);
 }
