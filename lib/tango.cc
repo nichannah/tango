@@ -52,7 +52,8 @@ void tango_init(const char *grid_name,
     /* FIXME: what to do about Fortran indexing convention here. For the time
      * being stick to C++/Python. */
 
-    /* Build the coupling manager for this process. */
+    /* Build the coupling manager for this process. This lasts for the lifetime
+     * of the process. */
     cm = new CouplingManager(string(grid_name), lis, lie, ljs, lje,
                              gis, gie, gjs, gje);
 }
@@ -95,23 +96,22 @@ void tango_end_transfer()
     assert(transfer->total_send_size != 0 || transfer->total_recv_size != 0);
 
     Router& router = cm->get_router();
-    Grid& grid = router->get_grid(transfer->grid_name);
 
     /* We are the sender */
     if (transfer->total_send_size != 0) {
 
         /* Iterate over the tiles we are sending to. */
-        for (auto& tile : grid.get_tiles()) {
+        for (const auto *tile : router.get_dest_tiles(transfer->grid_name)) {
 
-            /* Router tells us which points to send to each tile. */
-            auto& points = router.get_send_points(tile);
-            auto& weights = rank.get_weights(tile);
+            /* Which points to send to each destination tile. */
+            const auto& points = tile->get_send_points();
+            const auto& weights = tile->get_weights();
 
             /* Marshall data into buffer for current send. All variables are
              * sent at once. */
             double send_buf[transfer->total_send_size];
             offset = 0;
-            for (auto& field : transfer->fields) {
+            for (const auto& field : transfer->fields) {
                 for (int i = 0; i < points.size(); i++) {
                     send_buf[offset] = field.buffer[points[i]] * weight[i];
                     offset++;

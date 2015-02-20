@@ -42,10 +42,13 @@ private:
     map<string, Grid> src_grids;
 
     void broadcast_descriptions(void);
+    void remove_unreferenced_tiles(list<Tile *> &to_clean);
+    bool is_dest_grid(string grid);
+    bool is_src_grid(string grid);
 
 public:
     Router(void);
-    bool is_peer_grid(grid_id_t id);
+    const list<Tile *>& get_dest_tiles(string grid) { return dest_grids[grid].tiles; }
     void build_rules(void);
 };
 
@@ -81,13 +84,16 @@ private:
     vector<point> send_points;
     /* Local points that will be received from this tile. FIXME: is this
      * any different from above? */
-    vector<point> > recv_points;
+    vector<point> recv_points;
     /* Corrosponding weights for the points above. */
     vector<weight> weights;
 
 public:
     Tile(unsigned int description);
     bool has_point(p);
+    const vector<point>& get_send_points(void) { return send_points; }
+    const vector<point>& get_weights(void) { return weights; }
+    bool has_send_points(void) { return !send_points.empty() };
 };
 
 
