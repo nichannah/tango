@@ -1,5 +1,5 @@
-#if !defined ROUTER_H
-#define ROUTER_H
+#if !defined TANGO_INTERNAL_H
+#define TANGO_INTERNAL_H
 
 #include <map>
 #include <list>
@@ -7,98 +7,88 @@
 
 using namespace std;
 
-typedef unsigned int point
-typedef double weight
-typedef grid string
-typedef field string
+typedef unsigned int point_t
+typedef int tile_id_t
+typedef double weight_t
 
-class RemoteProc {
+/* A per-process coupling manager. */
+class CouplingManager {
 private:
-    /* Represents a remote proc and the information needed to map data to it. */
-    unsigned int rank;
+    /* Router that responsible for arranging communications with other
+     * processes. */
+    Router router;
 
-    /* Grid that the remote proc is on. */
-    string grid_name;
-    unsigned int grid_id;
+    /* Mapping from grid name to list of field send/received to/from this grid.
+     * This is used for runtime checking. */
+    map<string, list<string> > dest_grid_to_fields;
+    /* Read this as: the variables that we receive from each grid. */
+    map<string, list<string> > src_grid_to_fields;
 
-    /* i, j extent of local domain this proc is responsible for. */
-    unsigned int lis, lie, ljs, lje;
-    /* Global points that this proc is responsible for. */
-    /* It is a 1-D array of global indices. e.g. on a 2x2 grid the indices
-     * would be:
-     * | 3 | 4 |
-     * | 1 | 2 |
-     * This is how the ESMF remapping files index points. */
-    vector<point> global_points;
-
-    /* Local points that need to be sent to this remote proc. */
-    vector<point> send_points;
-    /* Local points that will be received from this remote proc. */
-    vector<point> recv_points;
-    /* Corrosponding weights for the points above. */
-    vector<weight> weights;
+    void parse_config(void);
 public:
-    RemoteProc(unsigned int description);
-    bool no_send_points(void) { return send_points.empty() };
-    bool has_global_point(p); 
-    const vector<point>& get_send_points(void);
-    const vector<weight>& get_send_weights(void);
-};
-
+    CouplingManager(string grid_name, int lis, int lie, int ljs, int lje,
+                                      int gis, int gie, int gjs, int gje);
+    const Router& get_router(void) { return router; }
+}
 
 class Router {
 private:
 
-    /* The grid that this router works for. */
-    /* FIXME: move these into a LocalProc object. */
-    grid my_grid;
-    unsigned int my_grid_id;
-    int my_rank;
-    int num_procs;
+    string local_grid_name;
+    Tile local_tile;
 
-    /* i, j extent of local domain that router is repsonsible for. */
-    unsigned int lis, lie, ljs, lje;
-    /* Local domain as a 1-D array of global indices. e.g. on a
-     * 2x2 grid the indices would be:
-     * | 3 | 4 |
-     * | 1 | 2 |
-     * This is how the ESMF remapping files index points. */
-    vector<point> local_points;
+    /* A list of remote grids that we communicate with. */
+    map<string, Grid> dest_grids;
+    map<string, Grid> src_grids;
 
-    /* Global domain. */
-    unsigned int gis, gie, gjs, gje;
-
-    /* The key is a grid name, the value is a list of fields which is
-     * sent/received. These are only needed for runtime checking. */
-    /* Read this as: the fields that we send to each grid. */
-    map<grid, list<field> > dest_grid_to_fields_map;
-    /* Read this as: the variables that we receive from each grid. */
-    map<grid, list<field> > src_grid_to_fields_map;
-
-    /* Map of grid id's to grid names. This is global information determined by
-     * the config file. */
-    map<unsigned int, grid> grid_id_to_name_map;
-
-    /* A list of grids that we communicate with. Easier to keep these around
-     * than construct on the fly. */
-    list<grid> dest_grids;
-    list<grid> src_grids;
-
-    /* Each key is a grid, value is a list of procs to contact when
-     * sending/receiveing to/from this grid. Use a list because a lot of random
-     * insert and remove. */
-    map<grid, list<RemoteProc> > dest_map;
-    map<grid, list<RemoteProc> > src_map;
-
-    void parse_config(void);
     void broadcast_descriptions(void);
 
 public:
-    Router(string name, int isd, int ied, int jsd, int jed);
+    Router(void);
+    bool is_peer_grid(grid_id_t id);
     void build_rules(void);
-
-    set<RemoteProc>& get_dest_procs(string grid);
-    set<RemoteProc>& get_src_procs(string grid);
 };
 
-#endif /* ROUTER_H */
+class Grid {
+public:
+    string name;
+
+    /* A list of tiles on this grid. These are only the tiles that this proc
+     * needs to commincate with. */
+    list<Tile *> tiles;
+};
+
+/* A per-rank tile is a subdomain of a particular grid. */
+class Tile {
+private:
+
+    /* Id of the tile is the MPI_COMM_WORLD rank on which the tile exists. */
+    tile_id id;
+
+    /* i, j extent of domain this tile contains. */
+    unsigned int lis, lie, ljs, lje;
+    /* A different representation of the above. It is a 1-D array of global
+     * indices. e.g. on a 2x2 grid the indices would be:
+     * | 3 | 4 |
+     * | 1 | 2 |
+     * This is how the ESMF remapping files index points. */
+    vector<point> points;
+
+    /* Global extent domain that this tile is a part of. */
+    unsigned int gis, gie, gjs, gje;
+
+    /* Local points that need to be sent to this tile. */
+    vector<point> send_points;
+    /* Local points that will be received from this tile. FIXME: is this
+     * any different from above? */
+    vector<point> > recv_points;
+    /* Corrosponding weights for the points above. */
+    vector<weight> weights;
+
+public:
+    Tile(unsigned int description);
+    bool has_point(p);
+};
+
+
+#endif /* TANGO_INTERNAL_H */

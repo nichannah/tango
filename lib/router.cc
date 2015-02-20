@@ -7,29 +7,23 @@
 
 using namespace netCDF;
 
-#define DESCRIPTION_SIZE 6
+#define MAX_GRID_NAME_SIZE 32
+#define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 1 + 9)
 #define WEIGHT_THRESHOLD 1e12
 
-RemoteProc::RemoteProc(unsigned int grid_id, unsigned int rank,
-                       int lis, int lie, int ljs, int lje)
-    : this.rank(rank), this.grid_id(grid_id),
-      this.lis(lis), this.lie(lie), this.ljs(ljs), this.lje(lje)
+Grid::Grid(unsigned int id) : this.id(id) {}
+Grid::~Grid()
 {
+    /* This should never happen. */
+    assert(false);
 }
 
-Router::Router(string name, int lis, int lie, int ljs, int lje,
+Tile::Tile(tile_id_t id,
+           int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje)
-    : grid_name(name),
-      this.lis(lis), this.lie(lie), this.ljs(ljs), this.lje(lje),
-      this.gis(gis), this.gie(gie), this.gjs(gjs), this.gje(lje)
+    : this.id(id), this.lis(lis), this.lie(lie), this.ljs(ljs), this.lje(lje)
 {
-    /* This is useful to know. */
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &num_procs);
-
-    my_grid = name;
-
-    /* Set up list of points that this proc is responsible for with a global
+    /* Set up list of points that this tile is responsible for with a global
      * reference. */
     int n_cols = gje - gjs
     int n_local_rows = lie - lis;
@@ -46,40 +40,85 @@ Router::Router(string name, int lis, int lie, int ljs, int lje,
     }
 }
 
+CouplingManager::CouplingManager(string grid_name,
+                                 int lis, int lie, int ljs, int lje,
+                                 int gis, int gie, int gjs, int gje)
+{
+    list<grid_id> dest_grids, src_grids;
+
+    parse_config(dest_grids, src_grids);
+    router = Router(grid_name_to_id(grid_name), dest_grids, src_grids,
+                    lis, lie, ljs, lje, gis, gie, gjs, gje);
+    router.exchange_descriptions()
+    router.build_routing_rules(grid_id_to_name);
+}
+
 /* Parse yaml config file. Find out which grids communicate and through which
- * variables. */
-void Router::parse_config(void)
+ * fields. */
+void CouplingManager::parse_config(list<grid_id>& dest_grids,
+                                   list<grid_id>& src_grids)
 {
     ifstream config_file;
-    YAML::Node grids, destinations, variables;
+    YAML::Node grids, destinations, fields;
 
     config_file.open("config.yaml");
     grids = YAML::Load(config_file)["grids"];
 
+    /* Iterate over grids to set up id to name map. */
+    for (size_t i = 0; i < grids.size(); i++) {
+        grid_id_to_name[grids[i]["name"]] = i;
+        grid_name_to_id[i] = grids[i]["name"];
+    }
+
     /* Iterate over grids. */
     for (size_t i = 0; i < grids.size(); i++) {
-        string grid_name = grids[i]["name"];
+        string src_grid = grids[i]["name"];
 
         /* Iterate over destinations for this grid. */
         destinations = grids[i]["destinations"];
         for (size_t j = 0; j < destinations.size(); j++) {
-            string dest_name = destinations[j]["name"];
+            string dest_grid = destinations[j]["name"];
 
-            /* Iterate over variables for this destination. */
-            variables = destinations[j]["vars"]
-            for (size_t k = 0; k < variables.size(); k++) {
-                var_name = variables[k];
+            /* Not allowed to send to self (yet) */
+            assert(dest_grid != src_grid);
 
-                if (my_grid == grid_name) {
-                   dest_grid_to_fields_map[dest_name].push_back(var_name);
-                   dest_grids.insert(dest_name);
-                   my_grid_id = i;
-                } else if (my_grid == dest_name)
-                   src_grid_to_fields_map[grid_name].push_back(var_name);
-                   src_grids.insert(grid_name);
+            if (my_grid_name == src_grid) {
+                dest_grids.push_back(grid_name_to_id[dest_grid]);
+            } else if (my_grid_name == dest_grid) {
+                src_grids.push_back(grid_name_to_id[src_grid]);
+            }
+
+            /* Iterate over fields for this destination. */
+            for (size_t k = 0; k < fields.size(); k++) {
+                field_name = fields[k];
+
+                if (my_grid_name == grid_name) {
+                   dest_grid_to_fields[dest_name].push_back(field_name);
+                } else if (my_grid_name == dest_name)
+                   src_grid_to_fields[grid_name].push_back(field_name);
                 }
             }
         }
+    }
+}
+
+Router::Router(grid_id,
+               list<grid_id>& dest_grids, list<grid_id>& src_grid_ids, 
+               int lis, int lie, int ljs, int lje,
+               int gis, int gie, int gjs, int gje) : this.grid_id(grid_id)
+{
+    tile_id_t tile_id;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &tile_id);
+
+    tile = Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
+    for (auto id : dest_grid_ids) {
+        assert(dest_grids.find(id) == dest_grids.end());
+        dest_grids[id] = Grid(id);
+    }
+    for (auto id : src_grid_ids) {
+        assert(src_grids.find(id) == src_grids.end());
+        src_grids[id] = Grid(id);
     }
 }
 
@@ -89,44 +128,68 @@ void Router::exchange_descriptions(void)
 {
     unsigned int description[DESCRIPTION_SIZE];
     unsigned int *all_descs;
+    int i;
 
     /* Marshall my description into an array. */
-    description[0] = my_grid_id;
-    description[1] = my_rank;
-    description[2] = lis;
-    description[3] = lie;
-    description[4] = ljs;
-    description[5] = lje;
-
-    all_descs = new unsigned int[DESCRIPTION_SIZE * num_procs];
+    /* We waste some bytes here when sending the grid name. */
+    assert(local_grid_name.size() <= MAX_GRID_NAME_SIZE);
+    for (i = 0; i < MAX_GRID_NAME_SIZE; i++) {
+        if (i < local_grid_name.size()) {
+            description[i] = local_grid_name[i];
+            assert(description[i] != '\0');
+        } else {
+            description[i] = '\0';
+        }
+    }
+    description[i++] = local_tile.id;
+    description[i++] = local_tile.lis;
+    description[i++] = local_tile.lie;
+    description[i++] = local_tile.ljs;
+    description[i++] = local_tile.lje;
+    description[i++] = local_tile.gis;
+    description[i++] = local_tile.gie;
+    description[i++] = local_tile.gjs;
+    description[i++] = local_tile.gje;
 
     /* Distribute all_descriptions. */
+    all_descs = new unsigned int[DESCRIPTION_SIZE * num_procs];
     MPI_Gather(description, DESCRIPTION_SIZE, MPI_UNSIGNED,
                all_descriptions, DESCRIPTION_SIZE * num_procs,
                MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     MPI_Broadcast(all_descriptions, DESCRIPTION_SIZE * num_procs,
                   MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-    /* Unmarshall into RemoteProc objects. */
+    /* Unmarshall into Tile objects. */
     for (int i = 0; i < num_procs * DESCRIPTION_SIZE; i += DESCRIPTION_SIZE) {
-        grid_id = all_descs[i]
-       /* Only care about remote procs that are on a peer grid. */
-        if (is_peer_grid(grid_id)) {
-            rp = RemoteProc(grid_id, all_descs[i+1], all_descs[i+2],
-                            all_descs[i+3], all_descs[i+4], all_descs[i+5]);
-            /* Insert into maps, these will be refined later and unnecessary
-             * procs deleted. */
-            if (is_dest_grid(grid_id)) {
-               dest_map[grid_id_to_name_map[grid_id]].push_back(rp);
+
+        int j = i;
+        string grid_name;
+
+        for (; j < MAX_GRID_NAME_SIZE; j++) {
+            if (all_descs[j] != '\0') {
+                grid_name.push_back((char)all_descs[j]);
             }
-            if (is_src_grid(grid_id)) {
-               src_map[grid_id_to_name_map[grid_id]].push_back(rp);
-            }
+        }
+
+        /* Insert into maps. These will be refined later and unnecessary
+         * tiles that we don't actually communicate with will be deleted.
+         * */
+        if (is_dest_grid(grid_name)) {
+            /* A tile could get big, so we make pointers and avoid copying. */
+            Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
+                               all_descs[j++], all_descs[j++], all_descs[j++]
+                               all_descs[j++], all_descs[j++], all_descs[j++]);
+             dest_grids[grid_id].tiles.push_back(t);
+        }
+        if (is_src_grid(grid_name)) {
+            Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
+                               all_descs[j++], all_descs[j++], all_descs[j++]
+                               all_descs[j++], all_descs[j++], all_descs[j++]);
+            src_grids[grid_id].tiles.push_back(t);
         }
     }
 
-    /* FIXME: check that the domains the remote procs don't overlap. */
-
+    /* FIXME: check that the domains of remote procs don't overlap. */
     delete(all_descs);
 }
 
@@ -154,24 +217,9 @@ void Router::read_netcdf(string filename, int *src_points, int *dest_points,
     weights_var.getVar(weights);
 }
 
-void Router::clean_unreferenced_remote_procs(list<RemoteProc> &to_clean)
-{
-    list<RemoteProc>::iterator it = to_clean.begin();
-    while (1) {
-        if (*it.no_send_points()) {
-            it = dest_map[grid].erase(it);
-        } else {
-            it++;
-        }
-
-        if (it == dest_map[grid].end()) {
-            break;
-        }
-    }
-}
 
 /* Will need to build different rules for the send_local case. */
-void Router::build_routing_rules(void)
+void Router::build_routing_rules()
 {
     parse_config();
     exchange_descriptions();
@@ -193,24 +241,28 @@ void Router::build_routing_rules(void)
      *    like the dest points are presented in consecutive order. */
 
     /* Iterate over all the grids that we send to. */
-    for (auto& grid : dest_grids) {
-        read_netcdf(my_name + "_to_" + grid + "_rmp.nc",
-                    src_points, dest_grids, weights);
+    for (const auto& dest_grid : this.dest_grids) {
+        grid_name = grid_id_to_name[grid.first];
+        read_netcdf(my_name + "_to_" + grid_name + "_rmp.nc",
+                    src_points, dest_points, weights);
 
-        /* For all points that this proc is responsible for, figure out which
-         * procs it needs to send to. FIXME: some kind of check that all our
-         * local points are covered. */
-        for (auto point : local_points) {
+        /* For all points that the local tile is responsible for, figure out
+         * which remote tiles it needs to send to. FIXME: some kind of check
+         * that all our local points are covered. */
+        for (const auto point : local_tile.points) {
             for (int i = 0; i < src_points; i++) {
                 if ((src_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
 
-                    /* Search through the remote procs and find the one that is
+                    /* Search through the remote tiles and find the one that is
                      * responsible for the dest_point that corresponds to this
                      * src_point. */
-                    for (auto const &rp : dest_map[grid]) {
-                        if (rp.has_global_point(dest_points[i])) {
+                    for (auto const *tile : dest_grid.second.tiles) {
+                        if (tile->has_point(dest_points[i])) {
                             /* Add to the list of points and weights. */
+                            send_points[]
+                            weights[]
+
                             rp.send_points.push_back(src_points[i]);
                             rp.send_weights.push_back(src_weights[i]);
                             break;
@@ -260,4 +312,42 @@ void Router::build_routing_rules(void)
         delete(weights);
         clean_unreferenced_remote_procs(src_map[grid]);
     }
+}
+
+void Router::remove_unreferenced_tiles(list<Tile> &to_clean)
+{
+    list<RemoteRank>::iterator it = to_clean.begin();
+    while (1) {
+        if (*it.no_send_points()) {
+            it = dest_map[grid].erase(it);
+        } else {
+            it++;
+        }
+
+        if (it == dest_map[grid].end()) {
+            break;
+        }
+    }
+}
+
+bool Router::is_dest_grid(grid_id_t id)
+{
+    for (const auto& kv : dest_grids) { 
+        if (kv.first == id) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool Router::is_src_grid(grid_id_t id)
+{
+    for (const auto& kv : src_grids) { 
+        if (kv.first == id) {
+            return true;
+        }
+    }
+
+    return false;
 }
