@@ -1,4 +1,4 @@
-#include <queue>
+#include <list>
 #include <assert.h>
 #include <mpi.h>
 
@@ -27,7 +27,7 @@ public:
     unsigned int total_send_size;
     unsigned int total_recv_size;
     string get_peer_grid(void) const { return peer_grid; }
-    queue<Field> fields;
+    list<Field> fields;
     Transfer(int time, string peer);
 };
 
@@ -73,7 +73,7 @@ void tango_put(const char *field_name, double array[], int size)
                                       transfer->get_peer_grid()));
 
     transfer->total_send_size += size;
-    transfer->fields.push(Field(array, size));
+    transfer->fields.push_back(Field(array, size));
 }
 
 void tango_get(const char *field_name, double array[], int size)
@@ -84,7 +84,7 @@ void tango_get(const char *field_name, double array[], int size)
                                         transfer->get_peer_grid()));
 
     transfer->total_recv_size += size;
-    transfer->fields.push(Field(array, size));
+    transfer->fields.push_back(Field(array, size));
 }
 
 void tango_end_transfer()
@@ -105,25 +105,23 @@ void tango_end_transfer()
         /* Iterate over the tiles we are sending to. */
         for (const auto *tile : router->get_dest_tiles(transfer->get_peer_grid())) {
 
-            /* Which points to send to each destination tile. */
+            /* Which local points to send to each destination tile. */
             const auto& points = tile->get_send_points();
             const auto& weights = tile->get_weights();
 
             /* Marshall data into buffer for current send. All variables are
              * sent at once. */
-            double send_buf[transfer->total_send_size];
+            double send_buf[points.size() * transfer->fields.size()];
             offset = 0;
-            while (!transfer->fields.empty()) {
-                Field& field = transfer->fields.front();
+            for (const auto& field : transfer->fields) {
                 for (int i = 0; i < points.size(); i++) {
+                    /* Note that points is in the local coordinate system (not global) */
                     send_buf[offset] = field.buffer[points[i]] * weights[i];
                     offset++;
                 }
-
-                transfer->fields.pop();
             }
 
-            /* Now do the actual send. */
+            /* Now do the actual send to the remote tile. */
             /*
             MPI_Isend();
             */

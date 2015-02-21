@@ -21,7 +21,7 @@ Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
     int j_offset = ljs - gjs;
 
     for (int i = i_offset; i < n_local_rows; i++) {
-        int index = (n_cols * i) + j_offset;
+        point_t index = (n_cols * i) + j_offset;
 
         for (int j = ljs; j < lje; j++) {
             points.push_back(index);
@@ -38,6 +38,18 @@ bool Tile::has_point(point_t p) const
         }
     }
     return false; 
+}
+
+point_t Tile::global_to_local(point_t global)
+{
+    point_t local = 0; 
+    for (auto p : points) {
+        if (p == global) {
+            return local;
+        }
+        local++;
+    }
+    assert(false);
 }
 
 Router::Router(string grid_name,
@@ -198,14 +210,25 @@ void Router::build_routing_rules(void)
             for (int i = 0; i < src_points.size(); i++) {
                 if ((src_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
+                    /* The src_point exists on the local tile. */
 
                     /* Search through the remote tiles and find the one that is
                      * responsible for the dest_point that corresponds to this
                      * src_point. */
                     for (auto *tile : grid.second->tiles) {
                         if (tile->has_point(dest_points[i])) {
-                            /* Add to the list of points and weights. */
-                            tile->send_points.push_back(src_points[i]);
+                            /* So this src_point (on the local tile) needs to
+                             * be sent to dest_point on the remote tile. We
+                             * keep track of this by adding it to a list of
+                             * send_points. */
+
+                            /* All point references use a global point id,
+                             * however when we actually go to send a field it
+                             * is going to use an index which starts at 0.
+                             * Therefore it's necessary to convert into the
+                             * local coordinate system. */
+                            point_t p = tile->global_to_local(src_points[i]);
+                            tile->send_points.push_back(p);
                             tile->weights.push_back(weights[i]);
                             break;
                         }
@@ -229,7 +252,7 @@ void Router::build_routing_rules(void)
                     src_points, dest_points, weights);
 
         /* For all points that this tile is responsible for, figure out which
-         * remote tiles needs to receive from. */
+         * remote tiles it needs to receive from. */
         for (auto point : local_tile->points) {
             for (int i = 0; i < dest_points.size(); i++) {
                 if ((dest_points[i] == point) &&
@@ -241,7 +264,8 @@ void Router::build_routing_rules(void)
                     for (auto *tile : grid.second->tiles) {
                         if (tile->has_point(src_points[i])) {
                             /* Add to the list of points and weights. */
-                            tile->recv_points.push_back(dest_points[i]);
+                            point_t p = tile->global_to_local(dest_points[i]);
+                            tile->recv_points.push_back(p);
                             tile->weights.push_back(weights[i]);
                             break;
                         }
@@ -251,6 +275,11 @@ void Router::build_routing_rules(void)
         }
         remove_unreferenced_tiles(grid.second->tiles);
     }
+
+    /* Now we have a routing data structure that tells us which remote tiles
+     * the local tile needs to communicate with. Also which local points need
+     * to be sent/received to/from the remote tile. */
+
 }
 
 void Router::remove_unreferenced_tiles(list<Tile *> &to_clean)
