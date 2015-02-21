@@ -40,10 +40,10 @@ public:
 
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
-    bool has_point(point_t p);
-    const vector<point_t>& get_send_points(void) { return send_points; }
-    const vector<double>& get_weights(void) { return weights; }
-    bool has_send_points(void) { return !send_points.empty(); }
+    bool has_point(point_t p) const;
+    const vector<point_t>& get_send_points(void) const { return send_points; }
+    const vector<double>& get_weights(void) const { return weights; }
+    bool has_send_points(void) const { return !send_points.empty(); }
 };
 
 class Grid {
@@ -68,13 +68,12 @@ private:
     int num_ranks;
 
     /* A list of remote grids that we communicate with. */
-    map<string, Grid> dest_grids;
-    map<string, Grid> src_grids;
+    map<string, Grid*> dest_grids;
+    map<string, Grid*> src_grids;
 
-    void exchange_descriptions(void);
-    void remove_unreferenced_tiles(list<Tile *> &to_clean);
-    void read_netcdf(string filename, int *src_points, int *dest_points,
-                     double *weigts);
+    void remove_unreferenced_tiles(list<Tile *>& to_clean);
+    void read_netcdf(string filename, vector<int>& src_points,
+                     vector<int>& dest_points, vector<double>& weigts);
     bool is_dest_grid(string grid);
     bool is_src_grid(string grid);
 
@@ -83,8 +82,11 @@ public:
            int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje);
     ~Router() { assert(false); }
-    const list<Tile *>& get_dest_tiles(string grid) { return dest_grids[grid].tiles; }
+    void build_routing_rules(void);
+    void exchange_descriptions(void);
     void build_rules(void);
+    list<Tile *>& get_dest_tiles(string grid) { return dest_grids[grid]->tiles; }
+    list<Tile *>& get_src_tiles(string grid) { return src_grids[grid]->tiles; }
 };
 
 /* A per-process coupling manager. */
@@ -92,7 +94,7 @@ class CouplingManager {
 private:
     /* Router that responsible for arranging communications with other
      * processes. */
-    Router router;
+    Router *router;
 
     /* Mapping from grid name to list of field send/received to/from this grid.
      * This is used for runtime checking. */
@@ -100,11 +102,13 @@ private:
     /* Read this as: the variables that we receive from each grid. */
     map<string, list<string> > src_grid_to_fields;
 
-    void parse_config(void);
+    void parse_config(list<string>& dest_grids, list<string>& src_grids);
 public:
     CouplingManager(string grid_name, int lis, int lie, int ljs, int lje,
                                       int gis, int gie, int gjs, int gje);
-    const Router& get_router(void) { return router; }
+    Router* get_router(void) { return router; }
+    bool can_send_field_to_grid(string field, string grid);
+    bool can_recv_field_from_grid(string field, string grid);
 };
 
 

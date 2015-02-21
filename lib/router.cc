@@ -30,6 +30,16 @@ Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
     }
 }
 
+bool Tile::has_point(point_t p) const
+{
+    for (auto point : points) {
+        if (p == point) {
+            return true;
+        }
+    }
+    return false; 
+}
+
 Router::Router(string grid_name,
                list<string>& dest_grid_names, list<string>& src_grid_names, 
                int lis, int lie, int ljs, int lje,
@@ -43,11 +53,11 @@ Router::Router(string grid_name,
     local_tile = new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
     for (const auto& grid_name : dest_grid_names) {
         assert(dest_grids.find(grid_name) == dest_grids.end());
-        dest_grids[grid_name] = Grid(grid_name);
+        dest_grids[grid_name] = new Grid(grid_name);
     }
     for (const auto& grid_name : src_grid_names) {
         assert(src_grids.find(grid_name) == src_grids.end());
-        src_grids[grid_name] = Grid(grid_name);
+        src_grids[grid_name] = new Grid(grid_name);
     }
 }
 
@@ -107,13 +117,13 @@ void Router::exchange_descriptions(void)
             Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
                                all_descs[j++], all_descs[j++], all_descs[j++],
                                all_descs[j++], all_descs[j++], all_descs[j++]);
-             dest_grids[grid_name].tiles.push_back(t);
+            get_dest_tiles(grid_name).push_back(t);
         }
         if (is_src_grid(grid_name)) {
             Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
                                all_descs[j++], all_descs[j++], all_descs[j++],
                                all_descs[j++], all_descs[j++], all_descs[j++]);
-            src_grids[grid_name].tiles.push_back(t);
+            get_src_tiles(grid_name).push_back(t);
         }
     }
 
@@ -121,16 +131,19 @@ void Router::exchange_descriptions(void)
     delete(all_descs);
 }
 
-void Router::read_netcdf(string filename, int *src_points, int *dest_points,
-                         double *weigts)
+void Router::read_netcdf(string filename, vector<int>& src_points, vector<int>& dest_points,
+                         vector<double>& weigts)
 {
     /* open the remapping weights file */
+    /*
     NcFile rmp_file(filename, NcFile::read);
     NcVar src_var = rmp_file.getVar("col");
     NcVar dest_var = rmp_file.getVar("row");
     NcVar weights_var = rmp_file.getVar("S");
+    */
 
     /* Assume that these are all 1 dimensional. */
+    /*
     int src_size = src_var.getDim(0).getSize();
     int dest_size = src_var.getDim(0).getSize();
     int weights_size = src_var.getDim(0).getSize();
@@ -143,16 +156,19 @@ void Router::read_netcdf(string filename, int *src_points, int *dest_points,
     src_var.getVar(src_points);
     dest_var.getVar(dest_points);
     weights_var.getVar(weights);
+    */
+
+    /*
+    src_points.insert(src_points.begin(), myarray, myarray+3);
+    dest_points.insert(dest_points.begin(), myarray, myarray+3);
+    weights.insert(weights.begin(), myarray, myarray+3);
+    */
 }
 
 
 /* Will need to build different rules for the send_local case. */
-void Router::build_routing_rules()
+void Router::build_routing_rules(void)
 {
-    int *src_points;
-    int *dest_points;
-    double *weights;
-
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the routing maps. */
 
@@ -166,23 +182,27 @@ void Router::build_routing_rules()
      *    like the dest points are presented in consecutive order. */
 
     /* Iterate over all the grids that we send to. */
-    for (const auto& grid : dest_grids) {
+    for (auto& grid : dest_grids) {
+        vector<int> src_points;
+        vector<int> dest_points;
+        vector<double> weights;
+
         /* grid.first is the name, grid.second is the object. */
-        read_netcdf(my_name + "_to_" + grid.first + "_rmp.nc",
+        read_netcdf(local_grid_name + "_to_" + grid.first + "_rmp.nc",
                     src_points, dest_points, weights);
 
         /* For all points that the local tile is responsible for, figure out
          * which remote tiles it needs to send to. FIXME: some kind of check
          * that all our local points are covered. */
         for (const auto point : local_tile->points) {
-            for (int i = 0; i < src_points; i++) {
+            for (int i = 0; i < src_points.size(); i++) {
                 if ((src_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
 
                     /* Search through the remote tiles and find the one that is
                      * responsible for the dest_point that corresponds to this
                      * src_point. */
-                    for (auto const *tile : grid.second.tiles) {
+                    for (auto *tile : grid.second->tiles) {
                         if (tile->has_point(dest_points[i])) {
                             /* Add to the list of points and weights. */
                             tile->send_points.push_back(src_points[i]);
@@ -194,30 +214,31 @@ void Router::build_routing_rules()
             }
         }
 
-        delete(src_points);
-        delete(dest_points);
-        delete(weights);
         /* Now clean up all the unused RemoteProcs that were inserted in
          * exchange_descriptions(). */
-        clean_unreferenced_tiles(grid.second.tiles);
+        remove_unreferenced_tiles(grid.second->tiles);
     }
 
     /* Iterate over all the grids that we receive from. */
     for (auto& grid : src_grids) {
-        read_netcdf(grid + "_to_" + grid.second + "_rmp.nc",
-                    src_points, dest_grids, weights);
+        vector<int> src_points;
+        vector<int> dest_points;
+        vector<double> weights;
+
+        read_netcdf(grid.first + "_to_" + local_grid_name + "_rmp.nc",
+                    src_points, dest_points, weights);
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles needs to receive from. */
-        for (auto point : local_points) {
-            for (int i = 0; i < dest_points; i++) {
+        for (auto point : local_tile->points) {
+            for (int i = 0; i < dest_points.size(); i++) {
                 if ((dest_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
 
                     /* Search through the remote tiles and find the one that is
                      * responsible for the src_point that corresponds to this
                      * dest_point. */
-                    for (auto const *tile : grid.second.tiles) {
+                    for (auto *tile : grid.second->tiles) {
                         if (tile->has_point(src_points[i])) {
                             /* Add to the list of points and weights. */
                             tile->recv_points.push_back(dest_points[i]);
@@ -228,17 +249,13 @@ void Router::build_routing_rules()
                 }
             }
         }
-
-        delete(src_points);
-        delete(dest_points);
-        delete(weights);
-        remove_unreferenced_tiles(grid.second.tiles);
+        remove_unreferenced_tiles(grid.second->tiles);
     }
 }
 
 void Router::remove_unreferenced_tiles(list<Tile *> &to_clean)
 {
-    list<RemoteRank>::iterator it = to_clean.begin();
+    auto it = to_clean.begin();
     while (1) {
         if (!(*it)->has_send_points()) {
             it = to_clean.erase(it);
@@ -281,10 +298,10 @@ CouplingManager::CouplingManager(string grid_name,
     list<string> dest_grids, src_grids;
 
     parse_config(dest_grids, src_grids);
-    router = Router(grid_name, dest_grids, src_grids,
-                    lis, lie, ljs, lje, gis, gie, gjs, gje);
-    router.exchange_descriptions();
-    router.build_routing_rules();
+    router = new Router(grid_name, dest_grids, src_grids,
+                        lis, lie, ljs, lje, gis, gie, gjs, gje);
+    router->exchange_descriptions();
+    router->build_routing_rules();
 }
 
 /* Parse yaml config file. Find out which grids communicate and through which
@@ -292,6 +309,7 @@ CouplingManager::CouplingManager(string grid_name,
 void CouplingManager::parse_config(list<string>& dest_grids,
                                    list<string>& src_grids)
 {
+#if 0
     ifstream config_file;
     YAML::Node grids, destinations, fields;
 
@@ -328,6 +346,7 @@ void CouplingManager::parse_config(list<string>& dest_grids,
             }
         }
     }
+#endif
 }
 
 bool CouplingManager::can_send_field_to_grid(string field, string grid)

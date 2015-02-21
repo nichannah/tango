@@ -10,21 +10,22 @@
 int main(int argc, char* argv[])
 {
     double *air_temp;
-    double *shortwave_flux;
+    double *sw_flux;
     int i, time;
 
     air_temp = new double[10];
-    shortwave_flux = double[10];
+    sw_flux = new double[10];
 
     MPI_Init(&argc, &argv);
-    tango_init();
+    tango_init("ocean", 1, 1, 1, 1, 1, 1, 1, 1);
 
     time = 0;
     for (i = 0; i < NUM_TIMESTEPS; i++) {
-        tango_begin_comm(time)
-        tango_recv(air_temp)
-        tango_recv(shortwave_flux)
-        tango_end_comm()
+
+        tango_begin_transfer(time, "atm");
+        tango_get("air_temp", air_temp, 10);
+        tango_get("sw_flux", sw_flux, 10);
+        tango_end_transfer();
 
         time += SECS_PER_TIMESTEP;
     }
@@ -33,5 +34,5 @@ int main(int argc, char* argv[])
     tango_finalize();
 
     delete(air_temp);
-    delete(shortwave_flux);
+    delete(sw_flux);
 }

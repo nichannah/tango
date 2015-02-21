@@ -22,10 +22,11 @@ private:
     int curr_time;
     int sender;
     /* Name of grid that this transfer is sending/recieving to/from. */
-    string grid_name;
+    string peer_grid;
 public:
     unsigned int total_send_size;
     unsigned int total_recv_size;
+    string get_peer_grid(void) const { return peer_grid; }
     queue<Field> fields;
     Transfer(int time, string peer);
 };
@@ -68,7 +69,8 @@ void tango_put(const char *field_name, double array[], int size)
 {
     assert(transfer != NULL);
     assert(transfer->total_recv_size == 0);
-    assert(cm.can_send_field_to_grid(string(field_name), transfer->grid_name));
+    assert(cm->can_send_field_to_grid(string(field_name),
+                                      transfer->get_peer_grid()));
 
     transfer->total_send_size += size;
     transfer->fields.push(Field(array, size));
@@ -78,8 +80,8 @@ void tango_get(const char *field_name, double array[], int size)
 {
     assert(transfer != nullptr);
     assert(transfer->total_send_size == 0);
-    assert(cm.can_recv_field_from_grid(string(field_name),
-                                       transfer->grid_name));
+    assert(cm->can_recv_field_from_grid(string(field_name),
+                                        transfer->get_peer_grid()));
 
     transfer->total_recv_size += size;
     transfer->fields.push(Field(array, size));
@@ -95,13 +97,13 @@ void tango_end_transfer()
     assert(transfer->total_send_size == 0 || transfer->total_recv_size == 0);
     assert(transfer->total_send_size != 0 || transfer->total_recv_size != 0);
 
-    Router& router = cm->get_router();
+    Router *router = cm->get_router();
 
     /* We are the sender */
     if (transfer->total_send_size != 0) {
 
         /* Iterate over the tiles we are sending to. */
-        for (const auto *tile : router.get_dest_tiles(transfer->grid_name)) {
+        for (const auto *tile : router->get_dest_tiles(transfer->get_peer_grid())) {
 
             /* Which points to send to each destination tile. */
             const auto& points = tile->get_send_points();
@@ -111,15 +113,20 @@ void tango_end_transfer()
              * sent at once. */
             double send_buf[transfer->total_send_size];
             offset = 0;
-            for (const auto& field : transfer->fields) {
+            while (!transfer->fields.empty()) {
+                Field& field = transfer->fields.front();
                 for (int i = 0; i < points.size(); i++) {
-                    send_buf[offset] = field.buffer[points[i]] * weight[i];
+                    send_buf[offset] = field.buffer[points[i]] * weights[i];
                     offset++;
                 }
+
+                transfer->fields.pop();
             }
 
             /* Now do the actual send. */
+            /*
             MPI_Isend();
+            */
         }
 
     } else {
@@ -136,6 +143,4 @@ void tango_end_transfer()
 void tango_finalize()
 {
     assert(transfer == nullptr);
-    delete(router);
-    delete(local_proc);
 }

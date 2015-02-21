@@ -1,0 +1,3 @@
+Import('env')
+
+env.Library('libtango.a', ['tango.cc', 'router.cc'])
