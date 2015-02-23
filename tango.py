@@ -28,4 +28,3 @@ def tango_finalize():
 
     lib.tango_finalize()
     lib = None
-
