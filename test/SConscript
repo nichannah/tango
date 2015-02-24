@@ -1,6 +1,6 @@
 Import('env')
 
-env.Library('libtango-stub.so', ['tango-stub.cc'])
+env.SharedLibrary('libtango-stub.so', ['tango-stub.cc'])
 
 env.Append(LIBS=['tango'], LIBPATH='#lib')
 env.Program('atm.exe', ['atm.cc'])
