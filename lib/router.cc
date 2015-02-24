@@ -340,10 +340,8 @@ CouplingManager::CouplingManager(string config, string grid_name,
 void CouplingManager::parse_config(string config, list<string>& dest_grids,
                                    list<string>& src_grids)
 {
-    //ifstream config_file;
     YAML::Node grids, destinations, fields;
 
-    //config_file.open(config);
     grids = YAML::LoadFile(config)["grids"];
 
     /* Iterate over grids. */
