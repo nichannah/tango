@@ -18,8 +18,10 @@ Field::Field(double *buf, unsigned int buf_size)
     : buffer(buf), size(buf_size) {}
 
 class PendingSend {
+public:
     MPI_Request *request;
     double *buffer;
+    PendingSend(MPI_Request *request, double *buffer);
 };
 
 PendingSend::PendingSend(MPI_Request *request, double *buffer)
@@ -73,7 +75,7 @@ void tango_begin_transfer(int time, const char* grid)
     if (transfer != nullptr) {
         /* A transfer object can be left over from a previous tango call. In
          * that case the MPI comms are not complete. */
-        for (auto &ps : pending_sends) {
+        for (auto &ps : transfer->pending_sends) {
             MPI_Wait(ps.request, MPI_STATUS_IGNORE);
             delete(ps.request);
             delete(ps.buffer);
@@ -143,20 +145,41 @@ void tango_end_transfer()
             }
 
             /* Now do the actual send to the remote tile. */
-            int tag;
+            /* FIXME: tag? */
             MPI_Request *request = new MPI_Request;
-            MPI_Isend(send_buf, count, MPI_DOUBLE, tile->get_id(), tag,
+            MPI_Isend(send_buf, count, MPI_DOUBLE, tile->get_id(), 0x7A960,
                       MPI_COMM_WORLD, request);
 
             /* Keep these, they need be freed later. */
-            pending_sends.push_back(PendingSend(request, send_buf));
+            transfer->pending_sends.push_back(PendingSend(request, send_buf));
         }
 
     } else {
+        /* We are the receiver. This is the reverse of above but we do a
+         * blocking receive. */
 
-        /* We are the receiver. */
-        /* Receive from source ranks. */
-        /* Copy recv into individual field buffers. */
+        for (const auto *tile : router->get_src_tiles(transfer->get_peer_grid())) {
+
+            const auto& points = tile->get_recv_points();
+            const auto& weights = tile->get_weights();
+
+            int count = points.size() * transfer->fields.size();
+            double *recv_buf = new double[count];
+            MPI_Status status;
+
+            MPI_Recv(recv_buf, count, MPI_DOUBLE, tile->get_id(), 0x7A960,
+                     MPI_COMM_WORLD, &status);
+
+            offset = 0;
+            for (const auto& field : transfer->fields) {
+                for (int i = 0; i < points.size(); i++) {
+                    /* Note that points is in the local coordinate system (not global) */
+                    field.buffer[points[i]] = recv_buf[offset] * weights[i];
+                    offset++;
+                }
+            }
+            delete(recv_buf); 
+        }
     }
 }
 
