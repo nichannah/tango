@@ -1,7 +1,7 @@
 
 #include <assert.h>
 #include <mpi.h>
-#include <netcdfcpp.h>
+#include <netcdf.h>
 
 #include "router.h"
 
@@ -37,12 +37,12 @@ bool Tile::has_point(point_t p) const
             return true;
         }
     }
-    return false; 
+    return false;
 }
 
 point_t Tile::global_to_local(point_t global)
 {
-    point_t local = 0; 
+    point_t local = 0;
     for (auto p : points) {
         if (p == global) {
             return local;
@@ -53,7 +53,7 @@ point_t Tile::global_to_local(point_t global)
 }
 
 Router::Router(string grid_name,
-               list<string>& dest_grid_names, list<string>& src_grid_names, 
+               list<string>& dest_grid_names, list<string>& src_grid_names,
                int lis, int lie, int ljs, int lje,
                int gis, int gie, int gjs, int gje) : local_grid_name(grid_name)
 {
@@ -300,7 +300,7 @@ void Router::remove_unreferenced_tiles(list<Tile *> &to_clean)
 
 bool Router::is_dest_grid(string grid)
 {
-    for (const auto& kv : dest_grids) { 
+    for (const auto& kv : dest_grids) {
         if (kv.first == grid) {
             return true;
         }
@@ -311,7 +311,7 @@ bool Router::is_dest_grid(string grid)
 
 bool Router::is_src_grid(string grid)
 {
-    for (const auto& kv : src_grids) { 
+    for (const auto& kv : src_grids) {
         if (kv.first == grid) {
             return true;
         }
