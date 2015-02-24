@@ -7,9 +7,17 @@
 
 # C extensions
 *.so
+*.os
 *.o
 *.exe
 *.a
+a.out
 
 # scons
 .sconsign.dblite
+
+# Data
+*.nc
+
+# ESMF
+PET0.RegridWeightGen.Log
