@@ -17,6 +17,14 @@ public:
 Field::Field(double *buf, unsigned int buf_size)
     : buffer(buf), size(buf_size) {}
 
+class PendingSend {
+    MPI_Request *request;
+    double *buffer;
+};
+
+PendingSend::PendingSend(MPI_Request *request, double *buffer)
+    : request(request), buffer(buffer) {}
+
 class Transfer {
 private:
     int curr_time;
@@ -28,6 +36,7 @@ public:
     unsigned int total_recv_size;
     string get_peer_grid(void) const { return peer_grid; }
     list<Field> fields;
+    list<PendingSend> pending_sends;
     Transfer(int time, string peer);
 };
 
@@ -61,7 +70,17 @@ void tango_init(const char *config, const char *grid_name,
 
 void tango_begin_transfer(int time, const char* grid)
 {
-    assert(transfer == NULL);
+    if (transfer != nullptr) {
+        /* A transfer object can be left over from a previous tango call. In
+         * that case the MPI comms are not complete. */
+        for (auto &ps : pending_sends) {
+            MPI_Wait(ps.request, MPI_STATUS_IGNORE);
+            delete(ps.request);
+            delete(ps.buffer);
+        }
+        delete(transfer);
+    }
+
     transfer = new Transfer(time, string(grid));
 }
 
@@ -111,7 +130,9 @@ void tango_end_transfer()
 
             /* Marshall data into buffer for current send. All variables are
              * sent at once. */
-            double send_buf[points.size() * transfer->fields.size()];
+            int count = points.size() * transfer->fields.size();
+            double *send_buf = new double[count];
+
             offset = 0;
             for (const auto& field : transfer->fields) {
                 for (int i = 0; i < points.size(); i++) {
@@ -122,9 +143,13 @@ void tango_end_transfer()
             }
 
             /* Now do the actual send to the remote tile. */
-            /*
-            MPI_Isend();
-            */
+            int tag;
+            MPI_Request *request = new MPI_Request;
+            MPI_Isend(send_buf, count, MPI_DOUBLE, tile->get_id(), tag,
+                      MPI_COMM_WORLD, request);
+
+            /* Keep these, they need be freed later. */
+            pending_sends.push_back(PendingSend(request, send_buf));
         }
 
     } else {
@@ -133,12 +158,10 @@ void tango_end_transfer()
         /* Receive from source ranks. */
         /* Copy recv into individual field buffers. */
     }
-
-    /* Transfer is complete. */
-    delete(transfer);
 }
 
 void tango_finalize()
 {
+    /* FIXME: free memory from pending sends. */
     assert(transfer == nullptr);
 }

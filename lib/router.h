@@ -45,6 +45,7 @@ public:
     const vector<double>& get_weights(void) const { return weights; }
     bool has_send_points(void) const { return !send_points.empty(); }
     point_t global_to_local(point_t global);
+    tile_id get_id(void) const { return tile_id; }
 };
 
 class Grid {
