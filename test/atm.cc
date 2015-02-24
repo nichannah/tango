@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
     sw_flux = new double[10];
 
     MPI_Init(&argc, &argv);
-    tango_init("atm", 1, 1, 1, 1, 1, 1, 1, 1);
+    tango_init("./config.yaml", "atm", 1, 1, 1, 1, 1, 1, 1, 1);
 
     time = 0;
     for (i = 0; i < NUM_TIMESTEPS; i++) {

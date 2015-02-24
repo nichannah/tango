@@ -86,6 +86,7 @@ public:
     void build_routing_rules(void);
     void exchange_descriptions(void);
     void build_rules(void);
+    string get_local_grid_name(void) { return local_grid_name; }
     list<Tile *>& get_dest_tiles(string grid) { return dest_grids[grid]->tiles; }
     list<Tile *>& get_src_tiles(string grid) { return src_grids[grid]->tiles; }
 };
@@ -103,10 +104,12 @@ private:
     /* Read this as: the variables that we receive from each grid. */
     map<string, list<string> > src_grid_to_fields;
 
-    void parse_config(list<string>& dest_grids, list<string>& src_grids);
+    void parse_config(string config, list<string>& dest_grids,
+                      list<string>& src_grids);
 public:
-    CouplingManager(string grid_name, int lis, int lie, int ljs, int lje,
-                                      int gis, int gie, int gjs, int gje);
+    CouplingManager(string config, string grid_name,
+                    int lis, int lie, int ljs, int lje,
+                    int gis, int gie, int gjs, int gje);
     Router* get_router(void) { return router; }
     bool can_send_field_to_grid(string field, string grid);
     bool can_recv_field_from_grid(string field, string grid);

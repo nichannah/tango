@@ -1,9 +1,13 @@
 
-#include <assert.h>
+#include <netcdf>
 #include <mpi.h>
-#include <netcdf.h>
+#include <assert.h>
+#include <fstream>
+#include <yaml-cpp/yaml.h>
 
 #include "router.h"
+
+using namespace netCDF;
 
 #define MAX_GRID_NAME_SIZE 32
 #define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 1 + 9)
@@ -143,38 +147,36 @@ void Router::exchange_descriptions(void)
     delete(all_descs);
 }
 
-void Router::read_netcdf(string filename, vector<int>& src_points, vector<int>& dest_points,
-                         vector<double>& weigts)
+void Router::read_netcdf(string filename, vector<int>& src_points,
+                         vector<int>& dest_points, vector<double>& weights)
 {
     /* open the remapping weights file */
-    /*
     NcFile rmp_file(filename, NcFile::read);
     NcVar src_var = rmp_file.getVar("col");
     NcVar dest_var = rmp_file.getVar("row");
     NcVar weights_var = rmp_file.getVar("S");
-    */
 
     /* Assume that these are all 1 dimensional. */
-    /*
     int src_size = src_var.getDim(0).getSize();
     int dest_size = src_var.getDim(0).getSize();
     int weights_size = src_var.getDim(0).getSize();
     assert(src_size == dest_size == weights_size);
 
-    src_points = new int[src_size];
-    dest_points = new int[dest_size];
-    weights = new double[weights_size];
+    int *src_data = new int[src_size];
+    int *dest_data = new int[dest_size];
+    double *weights_data = new double[weights_size];
 
-    src_var.getVar(src_points);
-    dest_var.getVar(dest_points);
-    weights_var.getVar(weights);
-    */
+    src_var.getVar(src_data);
+    dest_var.getVar(dest_data);
+    weights_var.getVar(weights_data);
 
-    /*
-    src_points.insert(src_points.begin(), myarray, myarray+3);
-    dest_points.insert(dest_points.begin(), myarray, myarray+3);
-    weights.insert(weights.begin(), myarray, myarray+3);
-    */
+    src_points.insert(src_points.begin(), src_data, src_data + src_size);
+    dest_points.insert(dest_points.begin(), dest_data, dest_data + dest_size);
+    weights.insert(weights.begin(), weights_data, weights_data + weights_size);
+
+    delete(src_data);
+    delete(dest_data);
+    delete(weights_data);
 }
 
 
@@ -320,13 +322,13 @@ bool Router::is_src_grid(string grid)
     return false;
 }
 
-CouplingManager::CouplingManager(string grid_name,
+CouplingManager::CouplingManager(string config, string grid_name,
                                  int lis, int lie, int ljs, int lje,
                                  int gis, int gie, int gjs, int gje)
 {
     list<string> dest_grids, src_grids;
 
-    parse_config(dest_grids, src_grids);
+    parse_config(config, dest_grids, src_grids);
     router = new Router(grid_name, dest_grids, src_grids,
                         lis, lie, ljs, lje, gis, gie, gjs, gje);
     router->exchange_descriptions();
@@ -335,47 +337,45 @@ CouplingManager::CouplingManager(string grid_name,
 
 /* Parse yaml config file. Find out which grids communicate and through which
  * fields. */
-void CouplingManager::parse_config(list<string>& dest_grids,
+void CouplingManager::parse_config(string config, list<string>& dest_grids,
                                    list<string>& src_grids)
 {
-#if 0
-    ifstream config_file;
+    //ifstream config_file;
     YAML::Node grids, destinations, fields;
 
-    config_file.open("config.yaml");
-    grids = YAML::Load(config_file)["grids"];
+    //config_file.open(config);
+    grids = YAML::LoadFile(config)["grids"];
 
     /* Iterate over grids. */
     for (size_t i = 0; i < grids.size(); i++) {
-        string src_grid = grids[i]["name"];
+        string src_grid = grids[i]["name"].as<string>();
 
         /* Iterate over destinations for this grid. */
         destinations = grids[i]["destinations"];
         for (size_t j = 0; j < destinations.size(); j++) {
-            string dest_grid = destinations[j]["name"];
+            string dest_grid = destinations[j]["name"].as<string>();
 
             /* Not allowed to send to self (yet) */
             assert(dest_grid != src_grid);
 
-            if (my_grid_name == src_grid) {
+            if (router->get_local_grid_name() == src_grid) {
                 dest_grids.push_back(dest_grid);
-            } else if (my_grid_name == dest_grid) {
+            } else if (router->get_local_grid_name() == dest_grid) {
                 src_grids.push_back(src_grid);
             }
 
             /* Iterate over fields for this destination. */
             for (size_t k = 0; k < fields.size(); k++) {
-                field_name = fields[k];
+                string field_name = fields[k].as<string>();
 
-                if (my_grid_name == grid_name) {
-                   dest_grid_to_fields[dest_name].push_back(field_name);
-                } else if (my_grid_name == dest_name)
-                   src_grid_to_fields[grid_name].push_back(field_name);
+                if (router->get_local_grid_name() == src_grid) {
+                   dest_grid_to_fields[dest_grid].push_back(field_name);
+                } else if (router->get_local_grid_name() == dest_grid) {
+                   src_grid_to_fields[src_grid].push_back(field_name);
                 }
             }
         }
     }
-#endif
 }
 
 bool CouplingManager::can_send_field_to_grid(string field, string grid)

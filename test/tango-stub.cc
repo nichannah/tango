@@ -13,7 +13,7 @@ static string curr_field_name;
 static double *curr_array;
 static int curr_size;
 
-DLLEXPORT void tango_init(const char *grid_name,
+DLLEXPORT void tango_init(const char *config, const char *grid_name,
                 /* Local  domain */
                 unsigned int lis, unsigned int lie,
                 unsigned int ljs, unsigned int lje,

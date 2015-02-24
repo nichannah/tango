@@ -39,7 +39,7 @@ static CouplingManager *cm;
 
 /* Pass in the grid name, the extents of the global domain and the extents of
  * the local domain that this proc is responsible for. */
-void tango_init(const char *grid_name,
+void tango_init(const char *config, const char *grid_name,
                 /* Local  domain */
                 unsigned int lis, unsigned int lie,
                 unsigned int ljs, unsigned int lje,
@@ -55,8 +55,8 @@ void tango_init(const char *grid_name,
 
     /* Build the coupling manager for this process. This lasts for the lifetime
      * of the process. */
-    cm = new CouplingManager(string(grid_name), lis, lie, ljs, lje,
-                             gis, gie, gjs, gje);
+    cm = new CouplingManager(string(config), string(grid_name),
+                             lis, lie, ljs, lje, gis, gie, gjs, gje);
 }
 
 void tango_begin_transfer(int time, const char* grid)
