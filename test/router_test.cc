@@ -19,6 +19,16 @@ TEST(Router, exchange_descriptions)
              0, l_rows, 0, l_cols, 0, g_rows, 0, g_cols);
 
     EXPECT_EQ(r.get_local_grid_name(), grid);
+
+    r.exchange_descriptions();
+
+    list<Tile *>& dest_tiles = r.get_dest_tiles("ice");
+    list<Tile *>& src_tiles = r.get_dest_tiles("ice");
+
+    /* Since we are talking to ourselves no tiles should have been made.
+     * FIXME: make two grids here. */
+    EXPECT_EQ(dest_tiles.size(), 0);
+    EXPECT_EQ(src_tiles.size(), 0);
 }
 
 /* These tests need to be run with mpirun -n 2 router_test.exe */

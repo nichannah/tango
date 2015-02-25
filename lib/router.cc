@@ -87,10 +87,12 @@ Router::Router(string grid_name,
 
     local_tile = new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
     for (const auto& grid_name : dest_grid_names) {
+        assert(grid_name != local_grid_name);
         assert(dest_grids.find(grid_name) == dest_grids.end());
         dest_grids[grid_name] = new Grid(grid_name);
     }
     for (const auto& grid_name : src_grid_names) {
+        assert(grid_name != local_grid_name);
         assert(src_grids.find(grid_name) == src_grids.end());
         src_grids[grid_name] = new Grid(grid_name);
     }
@@ -138,12 +140,13 @@ void Router::exchange_descriptions(void)
     description[i++] = local_tile->gjs;
     description[i++] = local_tile->gje;
 
+    /* MPI_UNSIGNED has size 8 so we use MPI_INT. */
     /* Distribute all_descriptions. */
     all_descs = new unsigned int[DESCRIPTION_SIZE * num_ranks];
     MPI_Gather(description, DESCRIPTION_SIZE, MPI_UNSIGNED, all_descs,
-               DESCRIPTION_SIZE * num_ranks, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+               DESCRIPTION_SIZE, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
     MPI_Bcast(all_descs, DESCRIPTION_SIZE * num_ranks, MPI_UNSIGNED,
-                  0, MPI_COMM_WORLD);
+              0, MPI_COMM_WORLD);
 
     /* Unmarshall into Tile objects. */
     for (int i = 0; i < num_ranks * DESCRIPTION_SIZE; i += DESCRIPTION_SIZE) {
@@ -156,6 +159,9 @@ void Router::exchange_descriptions(void)
                 grid_name.push_back((char)all_descs[j]);
             }
         }
+
+        /* Note that no tiles are made for grids that we don't communicate
+         * with, including ourselves. */
 
         /* Insert into maps. These will be refined later and unnecessary
          * tiles that we don't actually communicate with will be deleted.
