@@ -111,6 +111,21 @@ Router::~Router()
     }
 }
 
+
+list<Tile *>& Router::get_dest_tiles(string grid)
+{
+    auto it = dest_grids.find(grid);
+    assert(it != dest_grids.end());
+    return ((*it).second)->tiles;
+}
+
+list<Tile *>& Router::get_src_tiles(string grid)
+{
+    auto it = src_grids.find(grid);
+    assert(it != src_grids.end());
+    return ((*it).second)->tiles;
+}
+
 /* Pack a description of this proc and broadcast it to all others. They'll use
  * the information to set up their routers. */
 void Router::exchange_descriptions(void)
@@ -154,7 +169,7 @@ void Router::exchange_descriptions(void)
         int j = i;
         string grid_name;
 
-        for (; j < MAX_GRID_NAME_SIZE; j++) {
+        for (; j < (i + MAX_GRID_NAME_SIZE); j++) {
             if (all_descs[j] != '\0') {
                 grid_name.push_back((char)all_descs[j]);
             }
@@ -168,15 +183,15 @@ void Router::exchange_descriptions(void)
          * */
         if (is_dest_grid(grid_name)) {
             /* A tile could get big, so we make pointers and avoid copying. */
-            Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
-                               all_descs[j++], all_descs[j++], all_descs[j++],
-                               all_descs[j++], all_descs[j++], all_descs[j++]);
+            Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
+                               all_descs[j+3], all_descs[j+4], all_descs[j+5],
+                               all_descs[j+6], all_descs[j+7], all_descs[j+8]);
             get_dest_tiles(grid_name).push_back(t);
         }
         if (is_src_grid(grid_name)) {
-            Tile *t = new Tile(all_descs[j++], all_descs[j++], all_descs[j++],
-                               all_descs[j++], all_descs[j++], all_descs[j++],
-                               all_descs[j++], all_descs[j++], all_descs[j++]);
+            Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
+                               all_descs[j+3], all_descs[j+4], all_descs[j+5],
+                               all_descs[j+6], all_descs[j+7], all_descs[j+8]);
             get_src_tiles(grid_name).push_back(t);
         }
     }

@@ -7,10 +7,20 @@ using namespace std;
 
 TEST(Router, exchange_descriptions)
 {
+    int rank;
     int g_rows = 4, g_cols = 4, l_rows = 4, l_cols = 4;
     list<string> dest_grids, src_grids;
+
     string config_dir = "./";
-    string grid = "ocean";
+    string grid;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0) {
+        grid = "ocean";
+    } else {
+        grid = "ice";
+    }
 
     CouplingManager cm(config_dir, grid);
     cm.parse_config(config_dir, grid, dest_grids, src_grids);
@@ -22,13 +32,19 @@ TEST(Router, exchange_descriptions)
 
     r.exchange_descriptions();
 
-    list<Tile *>& dest_tiles = r.get_dest_tiles("ice");
-    list<Tile *>& src_tiles = r.get_dest_tiles("ice");
+    string peer_grid;
+    if (grid == "ocean") {
+        peer_grid = "ice";
+    } else {
+        EXPECT_EQ(grid, "ice");
+        peer_grid = "ocean";
+    }
 
-    /* Since we are talking to ourselves no tiles should have been made.
-     * FIXME: make two grids here. */
-    EXPECT_EQ(dest_tiles.size(), 0);
-    EXPECT_EQ(src_tiles.size(), 0);
+    list<Tile *>& dest_tiles = r.get_dest_tiles(peer_grid);
+    list<Tile *>& src_tiles = r.get_src_tiles(peer_grid);
+
+    EXPECT_EQ(dest_tiles.size(), 1);
+    EXPECT_EQ(src_tiles.size(), 1);
 }
 
 /* These tests need to be run with mpirun -n 2 router_test.exe */

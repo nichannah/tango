@@ -89,8 +89,8 @@ public:
     void exchange_descriptions(void);
     void build_rules(void);
     string get_local_grid_name(void) { return local_grid_name; }
-    list<Tile *>& get_dest_tiles(string grid) { return dest_grids[grid]->tiles; }
-    list<Tile *>& get_src_tiles(string grid) { return src_grids[grid]->tiles; }
+    list<Tile *>& get_dest_tiles(string grid);
+    list<Tile *>& get_src_tiles(string grid);
 };
 
 /* A per-process coupling manager. */
