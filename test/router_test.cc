@@ -47,8 +47,30 @@ TEST(Router, exchange_descriptions)
     EXPECT_EQ(src_tiles.size(), 1);
 }
 
+TEST(Router, build_routing_rules)
+{
+    int rank;
+    int g_rows = 4, g_cols = 4, l_rows = 4, l_cols = 4;
+    list<string> dest_grids, src_grids;
+
+    string config_dir = "./";
+    string grid;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0) {
+        grid = "ocean";
+    } else {
+        grid = "ice";
+    }
+
+    CouplingManager cm(config_dir, grid);
+    cm.build_router(0, l_rows, 0, l_cols, 0, g_rows, 0, g_cols);
+}
+
+
 /* These tests need to be run with mpirun -n 2 router_test.exe */
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
     int result = 0;
 
