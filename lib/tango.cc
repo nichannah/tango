@@ -66,8 +66,8 @@ void tango_init(const char *config, const char *grid_name,
 
     /* Build the coupling manager for this process. This lasts for the lifetime
      * of the process. */
-    cm = new CouplingManager(string(config), string(grid_name),
-                             lis, lie, ljs, lje, gis, gie, gjs, gje);
+    cm = new CouplingManager(string(config), string(grid_name));
+    cm->build_router(lis, lie, ljs, lje, gis, gie, gjs, gje);
 }
 
 void tango_begin_transfer(int time, const char* grid)

@@ -100,18 +100,23 @@ private:
      * processes. */
     Router *router;
 
+    /* Path to directory containing config.yaml and remapping weights files. */
+    string config_dir;
+    /* Name of grid that this process is on. */
+    string grid_name;
+
     /* Mapping from grid name to list of field send/received to/from this grid.
      * This is used for runtime checking. */
     map<string, list<string> > dest_grid_to_fields;
     /* Read this as: the variables that we receive from each grid. */
     map<string, list<string> > src_grid_to_fields;
 
+public:
+    CouplingManager(string config_dir, string grid_name);
+    void build_router(int lis, int lie, int ljs, int lje,
+                         int gis, int gie, int gjs, int gje);
     void parse_config(string config_dir, string local_grid_name,
                       list<string>& dest_grids, list<string>& src_grids);
-public:
-    CouplingManager(string config_dir, string grid_name,
-                    int lis, int lie, int ljs, int lje,
-                    int gis, int gie, int gjs, int gje);
     Router* get_router(void) { return router; }
     bool can_send_field_to_grid(string field, string grid);
     bool can_recv_field_from_grid(string field, string grid);

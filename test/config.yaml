@@ -3,16 +3,16 @@ grids:
     - name: ocean
       destinations:
         - name: ice
-          vars: [sst]
+          fields: [sst]
 
     - name: atm
       destinations:
         - name: ice
-          vars: [temp, swflux]
+          fields: [temp, swflux]
 
     - name: ice
       destinations:
         - name: ocean
-          vars: [temp, swflux]
+          fields: [temp, swflux]
         - name: atm
-          vars: [sst]
+          fields: [sst]

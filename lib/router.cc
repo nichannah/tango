@@ -341,17 +341,21 @@ bool Router::is_src_grid(string grid)
     return false;
 }
 
-CouplingManager::CouplingManager(string config_dir, string grid_name,
-                                 int lis, int lie, int ljs, int lje,
-                                 int gis, int gie, int gjs, int gje)
+CouplingManager::CouplingManager(string config_dir, string grid_name)
+    : config_dir(config_dir), grid_name(grid_name) {}
+
+/* Separate this from the constructor to make testing easier. */
+void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
+                                   int gis, int gie, int gjs, int gje)
 {
     list<string> dest_grids, src_grids;
 
-    parse_config(config_dir, grid_name, dest_grids, src_grids);
-    router = new Router(grid_name, dest_grids, src_grids,
+    parse_config(this->config_dir, this->grid_name, dest_grids, src_grids);
+
+    router = new Router(this->grid_name, dest_grids, src_grids,
                         lis, lie, ljs, lje, gis, gie, gjs, gje);
     router->exchange_descriptions();
-    router->build_routing_rules(config_dir);
+    router->build_routing_rules(this->config_dir);
 }
 
 /* Parse yaml config file. Find out which grids communicate and through which
@@ -388,6 +392,7 @@ void CouplingManager::parse_config(string config_dir, string local_grid_name,
             }
 
             /* Iterate over fields for this destination. */
+            fields = destinations[j]["fields"];
             for (size_t k = 0; k < fields.size(); k++) {
                 string field_name = fields[k].as<string>();
 
