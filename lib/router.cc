@@ -3,6 +3,7 @@
 #include <mpi.h>
 #include <assert.h>
 #include <fstream>
+#include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
 #include "router.h"
@@ -12,6 +13,15 @@ using namespace netCDF;
 #define MAX_GRID_NAME_SIZE 32
 #define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 1 + 9)
 #define WEIGHT_THRESHOLD 1e12
+
+static bool file_exists(string file)
+{
+    if (access(file.c_str(), F_OK) == -1) {
+        return false;
+    } else {
+        return true;
+    }
+}
 
 Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje)
@@ -181,7 +191,7 @@ void Router::read_netcdf(string filename, vector<int>& src_points,
 
 
 /* Will need to build different rules for the send_local case. */
-void Router::build_routing_rules(void)
+void Router::build_routing_rules(string config_dir)
 {
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the routing maps. */
@@ -202,8 +212,13 @@ void Router::build_routing_rules(void)
         vector<double> weights;
 
         /* grid.first is the name, grid.second is the object. */
-        read_netcdf(local_grid_name + "_to_" + grid.first + "_rmp.nc",
-                    src_points, dest_points, weights);
+        string remap_file = config_dir + "/" + local_grid_name + "_to_" +
+                            grid.first + "_rmp.nc";
+        if (!file_exists(remap_file)) {
+            cerr << "Error: " << remap_file << " does not exist." << endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        read_netcdf(remap_file, src_points, dest_points, weights);
 
         /* For all points that the local tile is responsible for, figure out
          * which remote tiles it needs to send to. FIXME: some kind of check
@@ -250,8 +265,13 @@ void Router::build_routing_rules(void)
         vector<int> dest_points;
         vector<double> weights;
 
-        read_netcdf(grid.first + "_to_" + local_grid_name + "_rmp.nc",
-                    src_points, dest_points, weights);
+        string remap_file = config_dir + "/" + grid.first + "_to_" +
+                            local_grid_name + "_rmp.nc";
+        if (!file_exists(remap_file)) {
+            cerr << "Error: " << remap_file << " does not exist." << endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        read_netcdf(remap_file, src_points, dest_points, weights);
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
@@ -281,7 +301,6 @@ void Router::build_routing_rules(void)
     /* Now we have a routing data structure that tells us which remote tiles
      * the local tile needs to communicate with. Also which local points need
      * to be sent/received to/from the remote tile. */
-
 }
 
 void Router::remove_unreferenced_tiles(list<Tile *> &to_clean)
@@ -322,27 +341,33 @@ bool Router::is_src_grid(string grid)
     return false;
 }
 
-CouplingManager::CouplingManager(string config, string grid_name,
+CouplingManager::CouplingManager(string config_dir, string grid_name,
                                  int lis, int lie, int ljs, int lje,
                                  int gis, int gie, int gjs, int gje)
 {
     list<string> dest_grids, src_grids;
 
-    parse_config(config, dest_grids, src_grids);
+    parse_config(config_dir, grid_name, dest_grids, src_grids);
     router = new Router(grid_name, dest_grids, src_grids,
                         lis, lie, ljs, lje, gis, gie, gjs, gje);
     router->exchange_descriptions();
-    router->build_routing_rules();
+    router->build_routing_rules(config_dir);
 }
 
 /* Parse yaml config file. Find out which grids communicate and through which
  * fields. */
-void CouplingManager::parse_config(string config, list<string>& dest_grids,
+void CouplingManager::parse_config(string config_dir, string local_grid_name,
+                                   list<string>& dest_grids,
                                    list<string>& src_grids)
 {
     YAML::Node grids, destinations, fields;
 
-    grids = YAML::LoadFile(config)["grids"];
+    string config_file = config_dir + "/config.yaml";
+    if (!file_exists(config_file)) {
+        cerr << "Error: " << config_file << " does not exist." << endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    grids = YAML::LoadFile(config_file)["grids"];
 
     /* Iterate over grids. */
     for (size_t i = 0; i < grids.size(); i++) {
@@ -356,9 +381,9 @@ void CouplingManager::parse_config(string config, list<string>& dest_grids,
             /* Not allowed to send to self (yet) */
             assert(dest_grid != src_grid);
 
-            if (router->get_local_grid_name() == src_grid) {
+            if (local_grid_name == src_grid) {
                 dest_grids.push_back(dest_grid);
-            } else if (router->get_local_grid_name() == dest_grid) {
+            } else if (local_grid_name == dest_grid) {
                 src_grids.push_back(src_grid);
             }
 
@@ -366,9 +391,9 @@ void CouplingManager::parse_config(string config, list<string>& dest_grids,
             for (size_t k = 0; k < fields.size(); k++) {
                 string field_name = fields[k].as<string>();
 
-                if (router->get_local_grid_name() == src_grid) {
+                if (local_grid_name == src_grid) {
                    dest_grid_to_fields[dest_grid].push_back(field_name);
-                } else if (router->get_local_grid_name() == dest_grid) {
+                } else if (local_grid_name == dest_grid) {
                    src_grid_to_fields[src_grid].push_back(field_name);
                 }
             }

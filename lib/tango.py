@@ -4,16 +4,24 @@ import os
 
 class Tango:
 
-    def __init__(self):
-        self.lib = ct.cdll.LoadLibrary('./libtango.so')
+    def __init__(self, config, grid, lis, lie, ljs, lje, gis, gie, gjs, gje):
 
+        self.lib = ct.cdll.LoadLibrary('libtango.so')
+
+        self.lib.tango_init.argtypes = [ct.POINTER(ct.c_char),
+                                        ct.POINTER(ct.c_char),
+                                        ct.c_uint, ct.c_uint, ct.c_uint,
+                                        ct.c_uint, ct.c_uint, ct.c_uint,
+                                        ct.c_uint, ct.c_uint]
         self.lib.tango_begin_transfer.argtypes = [ct.c_int,
                                                   ct.POINTER(ct.c_char)]
         self.lib.tango_put.argtypes = [ct.POINTER(ct.c_char),
                                        ct.POINTER(ct.c_double), ct.c_int]
         self.lib.tango_get.argtypes = [ct.POINTER(ct.c_char),
                                        ct.POINTER(ct.c_double), ct.c_int]
-        self.lib.tango_init()
+
+        self.lib.tango_init(config, grid, lis, lie, ljs, lje,
+                                          gis, gie, gjs, gje)
 
     def begin_transfer(self, time, grid_name):
         self.lib.tango_begin_transfer(time, grid_name)

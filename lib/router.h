@@ -85,7 +85,7 @@ public:
            int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje);
     ~Router() { assert(false); }
-    void build_routing_rules(void);
+    void build_routing_rules(string config_dir);
     void exchange_descriptions(void);
     void build_rules(void);
     string get_local_grid_name(void) { return local_grid_name; }
@@ -106,10 +106,10 @@ private:
     /* Read this as: the variables that we receive from each grid. */
     map<string, list<string> > src_grid_to_fields;
 
-    void parse_config(string config, list<string>& dest_grids,
-                      list<string>& src_grids);
+    void parse_config(string config_dir, string local_grid_name,
+                      list<string>& dest_grids, list<string>& src_grids);
 public:
-    CouplingManager(string config, string grid_name,
+    CouplingManager(string config_dir, string grid_name,
                     int lis, int lie, int ljs, int lje,
                     int gis, int gie, int gjs, int gje);
     Router* get_router(void) { return router; }
