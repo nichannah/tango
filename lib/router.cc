@@ -154,7 +154,7 @@ void Router::exchange_descriptions(void)
     }
 
     /* FIXME: check that the domains of remote procs don't overlap. */
-    delete(all_descs);
+    delete[] all_descs;
 }
 
 void Router::read_netcdf(string filename, vector<int>& src_points,
@@ -184,9 +184,9 @@ void Router::read_netcdf(string filename, vector<int>& src_points,
     dest_points.insert(dest_points.begin(), dest_data, dest_data + dest_size);
     weights.insert(weights.begin(), weights_data, weights_data + weights_size);
 
-    delete(src_data);
-    delete(dest_data);
-    delete(weights_data);
+    delete[] src_data;
+    delete[] dest_data;
+    delete[] weights_data;
 }
 
 

@@ -78,7 +78,7 @@ void tango_begin_transfer(int time, const char* grid)
         for (auto &ps : transfer->pending_sends) {
             MPI_Wait(ps.request, MPI_STATUS_IGNORE);
             delete(ps.request);
-            delete(ps.buffer);
+            delete[] ps.buffer;
         }
         delete(transfer);
     }
@@ -178,7 +178,7 @@ void tango_end_transfer()
                     offset++;
                 }
             }
-            delete(recv_buf); 
+            delete[] recv_buf; 
         }
     }
 }
