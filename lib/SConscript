@@ -1,3 +1,8 @@
+import os
+
 Import('env')
 
-env.Library('libtango.a', ['tango.cc', 'router.cc'])
+lib_paths = [os.environ['HOME'] + '/.local/lib/']
+libs = ['netcdf_c++4', 'yaml-cpp']
+
+env.SharedLibrary('libtango.so', ['tango.cc', 'router.cc'], LIBPATH=lib_paths, LIBS=libs)

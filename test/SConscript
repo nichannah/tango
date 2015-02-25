@@ -4,9 +4,5 @@ Import('env')
 
 env.SharedLibrary('libtango-stub.so', ['tango-stub.cc'])
 
-lib_paths = [os.environ['HOME'] + '/.local/lib/']
-libs = ['tango', 'netcdf_c++4', 'yaml-cpp']
-
-env.Append(LIBPATH=['#lib'] + lib_paths, LIBS=libs)
-env.Program('atm.exe', ['atm.cc'])
-env.Program('ocean.exe', ['ocean.cc'])
+env.Program('atm.exe', ['atm.cc'], LIBPATH='#lib', LIBS='tango')
+env.Program('ocean.exe', ['ocean.cc'], LIBPATH='#lib', LIBS='tango')
