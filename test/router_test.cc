@@ -3,6 +3,8 @@
 #include "gtest/gtest.h"
 #include "router.h"
 
+using namespace std;
+
 int main(int argc, char* argv[]) 
 {
     int result = 0;

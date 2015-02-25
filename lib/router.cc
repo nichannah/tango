@@ -34,11 +34,13 @@ Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
     int i_offset = lis - gis;
     int j_offset = ljs - gjs;
 
-    for (int i = i_offset; i < n_local_rows; i++) {
+    for (int i = i_offset; i < (i_offset + n_local_rows); i++) {
         point_t index = (n_cols * i) + j_offset;
 
         for (int j = ljs; j < lje; j++) {
-            points.push_back(index);
+            /* Since the grid remapping scheme (ESMP) labels points starting at
+             * 1 (not 0) we need to do the same. */
+            points.push_back(index + 1);
             index++;
         }
     }
@@ -425,5 +427,4 @@ bool CouplingManager::can_recv_field_from_grid(string field, string grid)
     }
     return false;
 }
-
 

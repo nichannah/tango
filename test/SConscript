@@ -20,4 +20,5 @@ test_env.Append(CPPPATH='#lib')
 # Unit tests.
 test_env.Program('coupling_manager_test.exe', ['coupling_manager_test.cc'])
 test_env.Program('router_test.exe', ['router_test.cc'])
+test_env.Program('tile_test.exe', ['tile_test.cc'])
 test_env.Program('tango_test.exe', ['tango_test.cc'])
