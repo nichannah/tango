@@ -6,3 +6,16 @@ env.SharedLibrary('libtango-stub.so', ['tango-stub.cc'])
 
 env.Program('atm.exe', ['atm.cc'], LIBPATH='#lib', LIBS='tango')
 env.Program('ocean.exe', ['ocean.cc'], LIBPATH='#lib', LIBS='tango')
+
+
+libpath = ['#lib', os.path.join(os.environ['HOME'], '.local', 'lib')]
+libs = ['tango', 'gtest_main', 'gtest']
+gtest_include = os.path.join(os.environ['HOME'], '.local', 'include')
+
+test_env = env.Clone(CXXFLAGS='-isystem {}'.format(gtest_include),
+                     LIBPATH=libpath,  LIBS=libs)
+
+# Unit tests.
+test_env.Program('coupling_manager_test.exe', ['coupling_manager_test.cc'])
+test_env.Program('router_test.exe', ['router_test.cc'])
+test_env.Program('tango_test.exe', ['tango_test.cc'])

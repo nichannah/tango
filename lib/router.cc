@@ -254,7 +254,7 @@ void Router::build_routing_rules(string config_dir)
             }
         }
 
-        /* Now clean up all the unused RemoteProcs that were inserted in
+        /* Now clean up all the unused Tiles that were inserted in
          * exchange_descriptions(). */
         remove_unreferenced_tiles(grid.second->tiles);
     }
