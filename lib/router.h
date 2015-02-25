@@ -59,7 +59,7 @@ public:
      * needs to commincate with. */
     list<Tile *> tiles;
     Grid(string grid_name) : name(grid_name) {}
-    ~Grid() { assert(false); }
+    ~Grid();
 };
 
 class Router {
@@ -84,7 +84,7 @@ public:
     Router(string grid_name, list<string>& dest_grids, list<string>& src_grids,
            int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje);
-    ~Router() { assert(false); }
+    ~Router();
     void build_routing_rules(string config_dir);
     void exchange_descriptions(void);
     void build_rules(void);

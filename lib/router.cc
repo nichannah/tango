@@ -68,6 +68,13 @@ point_t Tile::global_to_local(point_t global)
     assert(false);
 }
 
+Grid::~Grid()
+{
+    for (auto *t : tiles) {
+        delete t;
+    }
+}
+
 Router::Router(string grid_name,
                list<string>& dest_grid_names, list<string>& src_grid_names,
                int lis, int lie, int ljs, int lje,
@@ -86,6 +93,19 @@ Router::Router(string grid_name,
     for (const auto& grid_name : src_grid_names) {
         assert(src_grids.find(grid_name) == src_grids.end());
         src_grids[grid_name] = new Grid(grid_name);
+    }
+}
+
+Router::~Router()
+{
+    delete local_tile;
+
+    for (auto &g : dest_grids) {
+        delete g.second;
+    }
+
+    for (auto &g : src_grids) {
+        delete g.second;
     }
 }
 
