@@ -123,8 +123,18 @@ void tango_end_transfer()
     /* We are the sender */
     if (transfer->total_send_size != 0) {
 
-        /* Iterate over the tiles we are sending to. */
-        for (const auto *tile : router->get_dest_tiles(transfer->get_peer_grid())) {
+        /* Iterate over the tiles we communicate with. */
+        for (const auto *tile : router->get_grid_tiles(transfer->get_peer())) {
+
+            if (tile->send_points_empty()) {
+                /* There are no local points which need to be sent to this
+                 * tile. 
+                 *
+                 * Skipping through these is unlikely to be a performance
+                 * problem becaus the list of tiles contains only those which
+                 * need to be sent or received. Usually it will be both. */
+                continue;
+            }
 
             /* Which local points to send to each destination tile. */
             const auto& points = tile->get_send_points();

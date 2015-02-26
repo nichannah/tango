@@ -38,8 +38,8 @@ Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
         point_t index = (n_cols * i) + j_offset;
 
         for (int j = ljs; j < lje; j++) {
-            /* Since the grid remapping scheme (ESMP) labels points starting at
-             * 1 (not 0) we need to do the same. */
+            /* Since the remapping scheme (ESMP) labels points starting at 1
+             * (not 0) we need to do the same. */
             points.push_back(index + 1);
             index++;
         }
@@ -56,7 +56,7 @@ bool Tile::has_point(point_t p) const
     return false;
 }
 
-point_t Tile::global_to_local(point_t global)
+point_t Tile::global_to_local_domain(point_t global)
 {
     point_t local = 0;
     for (auto p : points) {
@@ -66,13 +66,6 @@ point_t Tile::global_to_local(point_t global)
         local++;
     }
     assert(false);
-}
-
-Grid::~Grid()
-{
-    for (auto *t : tiles) {
-        delete t;
-    }
 }
 
 Router::Router(string grid_name,
@@ -167,7 +160,7 @@ void Router::exchange_descriptions(void)
     for (int i = 0; i < num_ranks * DESCRIPTION_SIZE; i += DESCRIPTION_SIZE) {
 
         int j = i;
-        string grid_name;
+        grid_t grid_name;
 
         for (; j < (i + MAX_GRID_NAME_SIZE); j++) {
             if (all_descs[j] != '\0') {
@@ -180,15 +173,15 @@ void Router::exchange_descriptions(void)
 
         /* Insert into maps. These will be refined later and unnecessary
          * tiles that we don't actually communicate with will be deleted.
-         * */
-        if (is_dest_grid(grid_name)) {
+         * NOTE: a grid can be _both_ a destination and a source, in this  */
+        if (is_send_grid(grid_name)) {
             /* A tile could get big, so we make pointers and avoid copying. */
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
             get_dest_tiles(grid_name).push_back(t);
         }
-        if (is_src_grid(grid_name)) {
+        if (is_recv_grid(grid_name)) {
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
@@ -373,9 +366,9 @@ void Router::remove_unreferenced_tiles(list<Tile *> &to_clean, string type)
     }
 }
 
-bool Router::is_dest_grid(string grid)
+bool Router::is_send_grid(grid_t grid)
 {
-    for (const auto& kv : dest_grids) {
+    for (const auto& kv : put_mappings) {
         if (kv.first == grid) {
             return true;
         }
@@ -384,9 +377,9 @@ bool Router::is_dest_grid(string grid)
     return false;
 }
 
-bool Router::is_src_grid(string grid)
+bool Router::is_recv_grid(grid_t grid)
 {
-    for (const auto& kv : src_grids) {
+    for (const auto& kv : get_mappings) {
         if (kv.first == grid) {
             return true;
         }
@@ -402,7 +395,7 @@ CouplingManager::CouplingManager(string config_dir, string grid_name)
 void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
                                    int gis, int gie, int gjs, int gje)
 {
-    list<string> dest_grids, src_grids;
+    list<grid_t> dest_grids, src_grids;
 
     parse_config(this->config_dir, this->grid_name, dest_grids, src_grids);
 
@@ -414,9 +407,9 @@ void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
 
 /* Parse yaml config file. Find out which grids communicate and through which
  * fields. */
-void CouplingManager::parse_config(string config_dir, string local_grid_name,
-                                   list<string>& dest_grids,
-                                   list<string>& src_grids)
+void CouplingManager::parse_config(string config_dir, grid_t local_grid_name,
+                                   list<grid_t>& dest_grids,
+                                   list<grid_t>& src_grids)
 {
     YAML::Node grids, destinations, fields;
 

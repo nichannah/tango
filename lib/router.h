@@ -9,9 +9,9 @@ using namespace std;
 
 typedef unsigned int point_t;
 typedef int tile_id_t;
-typedef grid_t string;
+typedef string grid_t;
 
-/* A per-rank tile is a subdomain of a particular grid. */
+/* A per-rank tile represents a subdomain of a particular grid. */
 class Tile {
 public:
 
@@ -30,38 +30,25 @@ public:
     /* Global extent domain that this tile is a part of. */
     unsigned int gis, gie, gjs, gje;
 
-    /* Local points that need to be sent to this tile. */
+    /* Local points to send this tile. */
     vector<point_t> send_points;
-    /* Local points that will be received from this tile. FIXME: is this
-     * any different from above? */
+    /* Local points to recv from this tile. */
     vector<point_t> recv_points;
     /* Corrosponding weights for the points above. */
     vector<double> weights;
 
-
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
     bool has_point(point_t p) const;
-    const vector<point_t>& get_send_points(void) const { return send_points; }
-    const vector<point_t>& get_recv_points(void) const { return recv_points; }
+    const vector<point_t>& get_send_points(void) const
+        { return send_points; }
+    const vector<point_t>& get_recv_points(void) const
+        { return recv_points; }
+    bool send_points_empty(void) const { return send_points.empty(); }
+    bool recv_points_empty(void) const { return recv_points.empty(); }
     const vector<double>& get_weights(void) const { return weights; }
-    bool transfer_points_empty(void) const { return (send_points.empty() &&
-                                                     recv_points.empty()); }
-    point_t global_to_local(point_t global);
+    point_t global_to_local_domain(point_t global);
     tile_id_t get_id(void) const { return id; }
-};
-
-class Grid {
-private:
-    string name;
-
-public:
-
-    /* A list of tiles on this grid. These are only the tiles that this proc
-     * needs to commincate with. */
-    list<Tile *> tiles;
-    Grid(string grid_name) : name(grid_name) {}
-    ~Grid();
 };
 
 class Router {
@@ -72,15 +59,13 @@ private:
 
     int num_ranks;
 
-    /* A list of remote grids that we communicate with. */
-    map<string, Grid*> dest_grids;
-    map<string, Grid*> src_grids;
+    map<grid_t, list<Tile *> > grid_tiles;
+    list<grid_t> peer_grids;
 
     void remove_unreferenced_tiles(list<Tile *>& to_clean);
     void read_netcdf(string filename, vector<int>& src_points,
-                     vector<int>& dest_points, vector<double>& weigts);
-    bool is_dest_grid(string grid);
-    bool is_src_grid(string grid);
+                     vector<int>& dest_points, vector<double>& weights);
+    bool is_peer_grid(grid_t grid);
 
 public:
     Router(string grid_name, list<string>& dest_grids, list<string>& src_grids,
@@ -90,9 +75,9 @@ public:
     void build_routing_rules(string config_dir);
     void exchange_descriptions(void);
     void build_rules(void);
-    string get_local_grid_name(void) { return local_grid_name; }
-    list<Tile *>& get_dest_tiles(string grid);
-    list<Tile *>& get_src_tiles(string grid);
+    grid_t get_local_grid_name(void) { return local_grid_name; }
+    list<Tile *>& get_send_tiles(grid_t grid);
+    list<Tile *>& get_recv_tiles(grid_t grid);
 };
 
 /* A per-process coupling manager. */
@@ -109,9 +94,9 @@ private:
 
     /* Mapping from grid name to list of field send/received to/from this grid.
      * This is used for runtime checking. */
-    map<string, list<string> > dest_grid_to_fields;
+    map<grid_t, list<string> > dest_grid_to_fields;
     /* Read this as: the variables that we receive from each grid. */
-    map<string, list<string> > src_grid_to_fields;
+    map<grid_t, list<string> > src_grid_to_fields;
 
 public:
     CouplingManager(string config_dir, string grid_name);

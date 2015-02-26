@@ -9,3 +9,14 @@ grids:
       destinations:
         - name: ocean
           fields: [temp, swflux]
+
+mappings:
+    - file: ocean_to_ice_rmp.nc
+      source_grid: ocean
+      destination_grid: ice
+      fields: [sst]
+
+    - file: ice_to_ocean_rmp.nc
+      source_grid: ice
+      destination_grid: ocean
+      fields: [temp, swflux]
