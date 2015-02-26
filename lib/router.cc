@@ -112,14 +112,14 @@ Router::~Router()
 }
 
 
-list<Tile *>& Router::get_dest_tiles(string grid)
+list<Tile *>& Router::get_dest_tiles(grid_t grid)
 {
     auto it = dest_grids.find(grid);
     assert(it != dest_grids.end());
     return ((*it).second)->tiles;
 }
 
-list<Tile *>& Router::get_src_tiles(string grid)
+list<Tile *>& Router::get_src_tiles(grid_t grid)
 {
     auto it = src_grids.find(grid);
     assert(it != src_grids.end());
@@ -175,8 +175,8 @@ void Router::exchange_descriptions(void)
             }
         }
 
-        /* Note that no tiles are made for grids that we don't communicate
-         * with, including ourselves. */
+        /* Note that below no tiles are made for grids that we don't
+         * communicate with, including ourselves. */
 
         /* Insert into maps. These will be refined later and unnecessary
          * tiles that we don't actually communicate with will be deleted.
@@ -347,14 +347,24 @@ void Router::build_routing_rules(string config_dir)
      * to be sent/received to/from the remote tile. */
 }
 
-void Router::remove_unreferenced_tiles(list<Tile *> &to_clean)
+void Router::remove_unreferenced_tiles(list<Tile *> &to_clean, string type)
 {
+    assert(type == "send" || type == "recv");
+
     auto it = to_clean.begin();
     while (1) {
-        if (!(*it)->has_send_points()) {
-            it = to_clean.erase(it);
+        if (type == "send") {
+            if ((*it)->send_points_empty()) {
+                it = to_clean.erase(it);
+            } else {
+                it++;
+            }
         } else {
-            it++;
+            if ((*it)->recv_points_empty()) {
+                it = to_clean.erase(it);
+            } else {
+                it++;
+            }
         }
 
         if (it == to_clean.end()) {

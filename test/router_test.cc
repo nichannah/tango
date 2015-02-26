@@ -12,33 +12,26 @@ TEST(Router, exchange_descriptions)
     list<string> dest_grids, src_grids;
 
     string config_dir = "./basic_test_input/";
-    string grid;
+    string local_grid, peer_grid;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank == 0) {
-        grid = "ocean";
-    } else {
-        grid = "ice";
-    }
-
-    CouplingManager cm(config_dir, grid);
-    cm.parse_config(config_dir, grid, dest_grids, src_grids);
-
-    Router r(grid, dest_grids, src_grids,
-             0, l_rows, 0, l_cols, 0, g_rows, 0, g_cols);
-
-    EXPECT_EQ(r.get_local_grid_name(), grid);
-
-    r.exchange_descriptions();
-
-    string peer_grid;
-    if (grid == "ocean") {
+        local_grid = "ocean";
         peer_grid = "ice";
     } else {
-        EXPECT_EQ(grid, "ice");
+        local_grid = "ice";
         peer_grid = "ocean";
     }
+
+    CouplingManager cm(config_dir, local_grid);
+    cm.parse_config(config_dir, local_grid, dest_grids, src_grids);
+
+    Router r(local_grid, dest_grids, src_grids,
+             0, l_rows, 0, l_cols, 0, g_rows, 0, g_cols);
+
+    EXPECT_EQ(r.get_local_grid_name(), local_grid);
+    r.exchange_descriptions();
 
     list<Tile *>& dest_tiles = r.get_dest_tiles(peer_grid);
     list<Tile *>& src_tiles = r.get_src_tiles(peer_grid);
@@ -54,18 +47,34 @@ TEST(Router, build_routing_rules)
     list<string> dest_grids, src_grids;
 
     string config_dir = "./basic_test_input/";
-    string grid;
+    string local_grid, peer_grid;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank == 0) {
-        grid = "ocean";
+        local_grid = "ocean";
+        peer_grid = "ice";
     } else {
-        grid = "ice";
+        local_grid = "ice";
+        peer_grid = "ocean";
     }
 
-    CouplingManager cm(config_dir, grid);
+    CouplingManager cm(config_dir, local_grid);
     cm.build_router(0, l_rows, 0, l_cols, 0, g_rows, 0, g_cols);
+    Router *router = cm.get_router();
+
+    list<Tile *>& dest_tiles = router->get_dest_tiles(peer_grid);
+    list<Tile *>& src_tiles = router->get_dest_tiles(peer_grid);
+
+    /* Since the local domain covers the entire global domain we expect only
+     * one tile. */
+    EXPECT_EQ(dest_tiles.size(), 1);
+    EXPECT_EQ(src_tiles.size(), 1);
+
+    /* Now take a look at the destination and source tiles. */
+    if (local_grid == "ocean") {
+    } else {
+    }
 }
 
 

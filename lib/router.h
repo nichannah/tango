@@ -9,6 +9,7 @@ using namespace std;
 
 typedef unsigned int point_t;
 typedef int tile_id_t;
+typedef grid_t string;
 
 /* A per-rank tile is a subdomain of a particular grid. */
 class Tile {
@@ -44,7 +45,8 @@ public:
     const vector<point_t>& get_send_points(void) const { return send_points; }
     const vector<point_t>& get_recv_points(void) const { return recv_points; }
     const vector<double>& get_weights(void) const { return weights; }
-    bool has_send_points(void) const { return !send_points.empty(); }
+    bool transfer_points_empty(void) const { return (send_points.empty() &&
+                                                     recv_points.empty()); }
     point_t global_to_local(point_t global);
     tile_id_t get_id(void) const { return id; }
 };
