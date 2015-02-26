@@ -211,9 +211,10 @@ void Router::read_netcdf(string filename, vector<int>& src_points,
 
     /* Assume that these are all 1 dimensional. */
     int src_size = src_var.getDim(0).getSize();
-    int dest_size = src_var.getDim(0).getSize();
-    int weights_size = src_var.getDim(0).getSize();
-    assert(src_size == dest_size == weights_size);
+    int dest_size = dest_var.getDim(0).getSize();
+    int weights_size = weights_var.getDim(0).getSize();
+    assert(src_size == dest_size);
+    assert(dest_size == weights_size);
 
     int *src_data = new int[src_size];
     int *dest_data = new int[dest_size];
