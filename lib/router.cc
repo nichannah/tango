@@ -69,7 +69,8 @@ point_t Tile::global_to_local_domain(point_t global)
 }
 
 Router::Router(string grid_name,
-               list<string>& dest_grid_names, list<string>& src_grid_names,
+               unordered_set<string>& dest_grid_names,
+               unordered_set<string>& src_grid_names,
                int lis, int lie, int ljs, int lje,
                int gis, int gie, int gjs, int gje) : local_grid_name(grid_name)
 {
@@ -79,17 +80,10 @@ Router::Router(string grid_name,
     MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 
     local_tile = new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
-    /* Do some checks and put into router source and destination lists. */
-    for (const auto& gn : dest_grid_names) {
-        assert(gn != local_grid_name);
-        assert(dest_grids.find(gn) == src_grids.end());
-        this->dest_grids.push_back(gn);
-    }
-    for (const auto& gn : src_grid_names) {
-        assert(gn != local_grid_name);
-        assert(src_grids.find(gn) == src_grids.end());
-        this->src_grids.push_back(gn);
-    }
+    assert(dest_grid_names.find(local_grid_name) == dest_grid_names.end());
+    assert(src_grid_names.find(local_grid_name) == src_grid_names.end());
+    dest_grids = dest_grid_names;
+    src_grids = src_grid_names;
 }
 
 Router::~Router()
@@ -97,7 +91,9 @@ Router::~Router()
     delete local_tile;
 
     for (auto& kv : grid_tiles) {
-        delete kv.second;
+        for (auto *tile : kv.second) {
+            delete tile;
+        }
     }
 }
 
@@ -142,7 +138,7 @@ void Router::exchange_descriptions(void)
     for (int i = 0; i < num_ranks * DESCRIPTION_SIZE; i += DESCRIPTION_SIZE) {
 
         int j = i;
-        grid_t grid_name;
+        string grid_name;
 
         for (; j < (i + MAX_GRID_NAME_SIZE); j++) {
             if (all_descs[j] != '\0') {
@@ -161,7 +157,7 @@ void Router::exchange_descriptions(void)
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
-            grid_tiles[grid_name].push_back(t)
+            grid_tiles[grid_name].push_back(t);
         }
     }
 
@@ -245,7 +241,7 @@ void Router::build_routing_rules(string config_dir)
                     /* Search through the remote tiles and find the one that is
                      * responsible for the dest_point that corresponds to this
                      * src_point. */
-                    for (auto *tile : grid_tiles[grid]->tiles) {
+                    for (auto *tile : grid_tiles[grid]) {
                         if (tile->has_point(dest_points[i])) {
                             /* So this src_point (on the local tile) needs to
                              * be sent to dest_point on the remote tile. We
@@ -257,7 +253,7 @@ void Router::build_routing_rules(string config_dir)
                              * is going to use an index which starts at 0.
                              * Therefore it's necessary to convert into the
                              * local coordinate system. */
-                            point_t p = tile->global_to_local(src_points[i]);
+                            point_t p = tile->global_to_local_domain(src_points[i]);
                             tile->send_points.push_back(p);
                             tile->send_weights.push_back(weights[i]);
                             break;
@@ -292,10 +288,10 @@ void Router::build_routing_rules(string config_dir)
                     /* Search through the remote tiles and find the one that is
                      * responsible for the src_point that corresponds to this
                      * dest_point. */
-                    for (auto *tile : grid_tiles[grid]->tiles) {
+                    for (auto *tile : grid_tiles[grid]) {
                         if (tile->has_point(src_points[i])) {
                             /* Add to the list of points and weights. */
-                            point_t p = tile->global_to_local(dest_points[i]);
+                            point_t p = tile->global_to_local_domain(dest_points[i]);
                             tile->recv_points.push_back(p);
                             tile->recv_weights.push_back(weights[i]);
                             break;
@@ -346,6 +342,12 @@ bool Router::is_peer_grid(string grid)
     return false;
 }
 
+list<Tile *>& Router::get_grid_tiles(string grid)
+{
+    assert(is_peer_grid(grid));
+    return grid_tiles[grid];
+}
+
 CouplingManager::CouplingManager(string config_dir, string grid_name)
     : config_dir(config_dir), grid_name(grid_name) {}
 
@@ -353,7 +355,7 @@ CouplingManager::CouplingManager(string config_dir, string grid_name)
 void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
                                    int gis, int gie, int gjs, int gje)
 {
-    list<grid_t> dest_grids, src_grids;
+    unordered_set<string> dest_grids, src_grids;
 
     parse_config(this->config_dir, this->grid_name, dest_grids, src_grids);
 
@@ -366,8 +368,8 @@ void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
 /* Parse yaml config file. Find out which grids communicate and through which
  * fields. */
 void CouplingManager::parse_config(string config_dir, string local_grid_name,
-                                   list<string>& dest_grids,
-                                   list<string>& src_grids)
+                                   unordered_set<string>& dest_grids,
+                                   unordered_set<string>& src_grids)
 {
     YAML::Node mappings, fields;
 
@@ -380,8 +382,8 @@ void CouplingManager::parse_config(string config_dir, string local_grid_name,
 
     /* Iterate over mappings. */
     for (size_t i = 0; i < mappings.size(); i++) {
-        string src_grid = grids[i]["source_grid"].as<string>();
-        string dest_grid = grids[i]["destination_grid"].as<string>();
+        string src_grid = mappings[i]["source_grid"].as<string>();
+        string dest_grid = mappings[i]["destination_grid"].as<string>();
 
         /* Check that this combination has not already been seen. */
         if (dest_grids.find(dest_grid) != dest_grids.end() &&
@@ -394,14 +396,14 @@ void CouplingManager::parse_config(string config_dir, string local_grid_name,
         }
 
         if (local_grid_name == src_grid) {
-            dest_grids.push_back(dest_grid);
+            dest_grids.insert(dest_grid);
         } else if (local_grid_name == dest_grid) {
-            src_grids.push_back(src_grid);
+            src_grids.insert(src_grid);
         } else {
             continue;
         }
 
-        fields = destinations[i]["fields"];
+        fields = mappings[i]["fields"];
         for (size_t k = 0; k < fields.size(); k++) {
             string field_name = fields[k].as<string>();
 

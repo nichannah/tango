@@ -1,7 +1,8 @@
 #if !defined ROUTER_H
 #define ROUTER_H
 
-#include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <list>
 #include <vector>
 
@@ -37,7 +38,7 @@ public:
     vector<point_t> recv_points;
     /* Keep the recv_weights around for now, although not needed because they
      * are applied on the send side. */
-    vector<point_t> recv_weights;
+    vector<double> recv_weights;
 
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
@@ -46,9 +47,10 @@ public:
         { return send_points; }
     const vector<point_t>& get_recv_points(void) const
         { return recv_points; }
+    const vector<double>& get_send_weights(void) const { return send_weights; }
+    const vector<double>& get_recv_weights(void) const { return recv_weights; }
     bool send_points_empty(void) const { return send_points.empty(); }
     bool recv_points_empty(void) const { return recv_points.empty(); }
-    const vector<double>& get_weights(void) const { return weights; }
     point_t global_to_local_domain(point_t global);
     tile_id_t get_id(void) const { return id; }
 };
@@ -62,10 +64,10 @@ private:
     int num_ranks;
 
     /* Map grid names to lists of tiles. */
-    map<string, list<Tile *> > grid_tiles;
+    unordered_map<string, list<Tile *> > grid_tiles;
     /* Source (to receive from) and destination (to send to) grids. */
-    list<string> src_grids;
-    list<string> dest_grids;
+    unordered_set<string> src_grids;
+    unordered_set<string> dest_grids;
 
     void remove_unreferenced_tiles(void);
     void read_netcdf(string filename, vector<int>& src_points,
@@ -73,13 +75,15 @@ private:
     bool is_peer_grid(string grid);
 
 public:
-    Router(string grid_name, list<string>& dest_grids, list<string>& src_grids,
+    Router(string grid_name, unordered_set<string>& dest_grids,
+           unordered_set<string>& src_grids,
            int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje);
     ~Router();
     void build_routing_rules(string config_dir);
     void exchange_descriptions(void);
     void build_rules(void);
+    list<Tile *>& get_grid_tiles(string grid);
     string get_local_grid_name(void) { return local_grid_name; }
 };
 
@@ -93,20 +97,21 @@ private:
     /* Path to directory containing config.yaml and remapping weights files. */
     string config_dir;
     /* The grid that this process is on. */
-    string grid;
+    string grid_name;
 
     /* Mapping from grid name to list of field send/received to/from this grid.
      * This is used for runtime checking. */
-    map<string, list<string> > dest_grid_to_fields;
+    unordered_map<string, list<string> > dest_grid_to_fields;
     /* Read this as: the variables that we receive from each grid. */
-    map<string, list<string> > src_grid_to_fields;
+    unordered_map<string, list<string> > src_grid_to_fields;
 
 public:
     CouplingManager(string config_dir, string grid_name);
     void build_router(int lis, int lie, int ljs, int lje,
                          int gis, int gie, int gjs, int gje);
     void parse_config(string config_dir, string local_grid_name,
-                      list<string>& dest_grids, list<string>& src_grids);
+                      unordered_set<string>& dest_grids,
+                      unordered_set<string>& src_grids);
     Router* get_router(void) { return router; }
     bool can_send_field_to_grid(string field, string grid);
     bool can_recv_field_from_grid(string field, string grid);

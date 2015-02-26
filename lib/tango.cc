@@ -124,7 +124,8 @@ void tango_end_transfer()
     if (transfer->total_send_size != 0) {
 
         /* Iterate over the tiles we communicate with. */
-        for (const auto *tile : router->get_grid_tiles(transfer->get_peer())) {
+        for (const auto *tile :
+             router->get_grid_tiles(transfer->get_peer_grid())) {
 
             if (tile->send_points_empty()) {
                 /* There are no local points which need to be sent to this
@@ -138,7 +139,7 @@ void tango_end_transfer()
 
             /* Which local points to send to each destination tile. */
             const auto& points = tile->get_send_points();
-            const auto& weights = tile->get_weights();
+            const auto& weights = tile->get_send_weights();
 
             /* Marshall data into buffer for current send. All variables are
              * sent at once. */
@@ -168,10 +169,14 @@ void tango_end_transfer()
         /* We are the receiver. This is the reverse of above but we do a
          * blocking receive. */
 
-        for (const auto *tile : router->get_src_tiles(transfer->get_peer_grid())) {
+        for (const auto *tile :
+             router->get_grid_tiles(transfer->get_peer_grid())) {
+
+            if (tile->recv_points_empty()) {
+                continue;
+            }
 
             const auto& points = tile->get_recv_points();
-            const auto& weights = tile->get_weights();
 
             int count = points.size() * transfer->fields.size();
             double *recv_buf = new double[count];
@@ -183,8 +188,9 @@ void tango_end_transfer()
             offset = 0;
             for (const auto& field : transfer->fields) {
                 for (int i = 0; i < points.size(); i++) {
-                    /* Note that points is in the local coordinate system (not global) */
-                    field.buffer[points[i]] = recv_buf[offset] * weights[i];
+                    /* Note that points is in the local coordinate system (not global)
+                     * No need to apply weights here, that was done on the send side. */
+                    field.buffer[points[i]] = recv_buf[offset];
                     offset++;
                 }
             }
