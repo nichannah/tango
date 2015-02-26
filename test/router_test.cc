@@ -11,7 +11,7 @@ TEST(Router, exchange_descriptions)
     int g_rows = 4, g_cols = 4, l_rows = 4, l_cols = 4;
     list<string> dest_grids, src_grids;
 
-    string config_dir = "./";
+    string config_dir = "./basic_test_input/";
     string grid;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -53,7 +53,7 @@ TEST(Router, build_routing_rules)
     int g_rows = 4, g_cols = 4, l_rows = 4, l_cols = 4;
     list<string> dest_grids, src_grids;
 
-    string config_dir = "./";
+    string config_dir = "./basic_test_input/";
     string grid;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);

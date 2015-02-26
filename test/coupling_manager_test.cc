@@ -11,7 +11,7 @@ TEST(CouplingManagerTest, parse_config)
 {
     list<string> dest_grids, src_grids;
 
-    string config_dir = "./";
+    string config_dir = "./basic_test_input/";
     string grid = "ocean";
 
     CouplingManager cm(config_dir, grid);

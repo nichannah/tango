@@ -5,14 +5,7 @@ grids:
         - name: ice
           fields: [sst]
 
-    - name: atm
-      destinations:
-        - name: ice
-          fields: [temp, swflux]
-
     - name: ice
       destinations:
         - name: ocean
           fields: [temp, swflux]
-        - name: atm
-          fields: [sst]
