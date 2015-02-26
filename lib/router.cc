@@ -79,15 +79,16 @@ Router::Router(string grid_name,
     MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 
     local_tile = new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
-    for (const auto& grid_name : dest_grid_names) {
-        assert(grid_name != local_grid_name);
-        assert(dest_grids.find(grid_name) == dest_grids.end());
-        dest_grids[grid_name] = new Grid(grid_name);
+    /* Do some checks and put into router source and destination lists. */
+    for (const auto& gn : dest_grid_names) {
+        assert(gn != local_grid_name);
+        assert(dest_grids.find(gn) == src_grids.end());
+        this->dest_grids.push_back(gn);
     }
-    for (const auto& grid_name : src_grid_names) {
-        assert(grid_name != local_grid_name);
-        assert(src_grids.find(grid_name) == src_grids.end());
-        src_grids[grid_name] = new Grid(grid_name);
+    for (const auto& gn : src_grid_names) {
+        assert(gn != local_grid_name);
+        assert(src_grids.find(gn) == src_grids.end());
+        this->src_grids.push_back(gn);
     }
 }
 
@@ -95,28 +96,9 @@ Router::~Router()
 {
     delete local_tile;
 
-    for (auto &g : dest_grids) {
-        delete g.second;
+    for (auto& kv : grid_tiles) {
+        delete kv.second;
     }
-
-    for (auto &g : src_grids) {
-        delete g.second;
-    }
-}
-
-
-list<Tile *>& Router::get_dest_tiles(grid_t grid)
-{
-    auto it = dest_grids.find(grid);
-    assert(it != dest_grids.end());
-    return ((*it).second)->tiles;
-}
-
-list<Tile *>& Router::get_src_tiles(grid_t grid)
-{
-    auto it = src_grids.find(grid);
-    assert(it != src_grids.end());
-    return ((*it).second)->tiles;
 }
 
 /* Pack a description of this proc and broadcast it to all others. They'll use
@@ -171,21 +153,15 @@ void Router::exchange_descriptions(void)
         /* Note that below no tiles are made for grids that we don't
          * communicate with, including ourselves. */
 
-        /* Insert into maps. These will be refined later and unnecessary
-         * tiles that we don't actually communicate with will be deleted.
-         * NOTE: a grid can be _both_ a destination and a source, in this  */
-        if (is_send_grid(grid_name)) {
+        /* Make a new tile and insert into list of tiles for this grid. This
+         * list of will be refined later, any tile that we don't actually
+         * communicate with will be deleted. */
+        if (is_peer_grid(grid_name)) {
             /* A tile could get big, so we make pointers and avoid copying. */
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
-            get_dest_tiles(grid_name).push_back(t);
-        }
-        if (is_recv_grid(grid_name)) {
-            Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
-                               all_descs[j+3], all_descs[j+4], all_descs[j+5],
-                               all_descs[j+6], all_descs[j+7], all_descs[j+8]);
-            get_src_tiles(grid_name).push_back(t);
+            grid_tiles[grid_name].push_back(t)
         }
     }
 
@@ -233,7 +209,7 @@ void Router::build_routing_rules(string config_dir)
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the routing maps. */
 
-    /* FIXME: performance may be a problem here. This loop is going to take in
+    /* FIXME: performance may be a problem here. This loop is may take in
      * the order of seconds for a 1000x1000 grid with 1000 procs, it may
      * not scale well to larger grids. Ways to improve performance:
      * 1. Set up a point -> proc map. This could be several Mb in size.
@@ -250,7 +226,7 @@ void Router::build_routing_rules(string config_dir)
 
         /* grid.first is the name, grid.second is the object. */
         string remap_file = config_dir + "/" + local_grid_name + "_to_" +
-                            grid.first + "_rmp.nc";
+                            grid + "_rmp.nc";
         if (!file_exists(remap_file)) {
             cerr << "Error: " << remap_file << " does not exist." << endl;
             MPI_Abort(MPI_COMM_WORLD, 1);
@@ -258,8 +234,8 @@ void Router::build_routing_rules(string config_dir)
         read_netcdf(remap_file, src_points, dest_points, weights);
 
         /* For all points that the local tile is responsible for, figure out
-         * which remote tiles it needs to send to. FIXME: some kind of check
-         * that all our local points are covered. */
+         * which tiles it needs to send/recv to/from. */
+        /* FIXME: some kind of check that all our local points are covered. */
         for (const auto point : local_tile->points) {
             for (int i = 0; i < src_points.size(); i++) {
                 if ((src_points[i] == point) &&
@@ -269,7 +245,7 @@ void Router::build_routing_rules(string config_dir)
                     /* Search through the remote tiles and find the one that is
                      * responsible for the dest_point that corresponds to this
                      * src_point. */
-                    for (auto *tile : grid.second->tiles) {
+                    for (auto *tile : grid_tiles[grid]->tiles) {
                         if (tile->has_point(dest_points[i])) {
                             /* So this src_point (on the local tile) needs to
                              * be sent to dest_point on the remote tile. We
@@ -283,17 +259,13 @@ void Router::build_routing_rules(string config_dir)
                              * local coordinate system. */
                             point_t p = tile->global_to_local(src_points[i]);
                             tile->send_points.push_back(p);
-                            tile->weights.push_back(weights[i]);
+                            tile->send_weights.push_back(weights[i]);
                             break;
                         }
                     }
                 }
             }
         }
-
-        /* Now clean up all the unused Tiles that were inserted in
-         * exchange_descriptions(). */
-        remove_unreferenced_tiles(grid.second->tiles);
     }
 
     /* Iterate over all the grids that we receive from. */
@@ -302,7 +274,7 @@ void Router::build_routing_rules(string config_dir)
         vector<int> dest_points;
         vector<double> weights;
 
-        string remap_file = config_dir + "/" + grid.first + "_to_" +
+        string remap_file = config_dir + "/" + grid + "_to_" +
                             local_grid_name + "_rmp.nc";
         if (!file_exists(remap_file)) {
             cerr << "Error: " << remap_file << " does not exist." << endl;
@@ -320,69 +292,55 @@ void Router::build_routing_rules(string config_dir)
                     /* Search through the remote tiles and find the one that is
                      * responsible for the src_point that corresponds to this
                      * dest_point. */
-                    for (auto *tile : grid.second->tiles) {
+                    for (auto *tile : grid_tiles[grid]->tiles) {
                         if (tile->has_point(src_points[i])) {
                             /* Add to the list of points and weights. */
                             point_t p = tile->global_to_local(dest_points[i]);
                             tile->recv_points.push_back(p);
-                            tile->weights.push_back(weights[i]);
+                            tile->recv_weights.push_back(weights[i]);
                             break;
                         }
                     }
                 }
             }
         }
-        remove_unreferenced_tiles(grid.second->tiles);
     }
+
+    /* Now clean up all the unused Tiles that were inserted in
+     * exchange_descriptions(). */
+    remove_unreferenced_tiles();
 
     /* Now we have a routing data structure that tells us which remote tiles
      * the local tile needs to communicate with. Also which local points need
-     * to be sent/received to/from the remote tile. */
+     * to be sent/received to/from each remote tile. */
 }
 
-void Router::remove_unreferenced_tiles(list<Tile *> &to_clean, string type)
+void Router::remove_unreferenced_tiles(void)
 {
-    assert(type == "send" || type == "recv");
-
-    auto it = to_clean.begin();
-    while (1) {
-        if (type == "send") {
-            if ((*it)->send_points_empty()) {
-                it = to_clean.erase(it);
+    for (auto& kv : grid_tiles) {
+        auto it = kv.second.begin();
+        while (1) {
+            if ((*it)->send_points_empty() && (*it)->recv_points_empty()) {
+                it = kv.second.erase(it);
             } else {
                 it++;
             }
-        } else {
-            if ((*it)->recv_points_empty()) {
-                it = to_clean.erase(it);
-            } else {
-                it++;
-            }
-        }
 
-        if (it == to_clean.end()) {
-            break;
+            if (it == kv.second.end()) {
+                break;
+            }
         }
     }
 }
 
-bool Router::is_send_grid(grid_t grid)
+bool Router::is_peer_grid(string grid)
 {
-    for (const auto& kv : put_mappings) {
-        if (kv.first == grid) {
-            return true;
-        }
+    if (dest_grids.find(grid) != dest_grids.end()) {
+        return true;
     }
 
-    return false;
-}
-
-bool Router::is_recv_grid(grid_t grid)
-{
-    for (const auto& kv : get_mappings) {
-        if (kv.first == grid) {
-            return true;
-        }
+    if (src_grids.find(grid) != src_grids.end()) {
+        return true;
     }
 
     return false;
@@ -407,47 +365,50 @@ void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
 
 /* Parse yaml config file. Find out which grids communicate and through which
  * fields. */
-void CouplingManager::parse_config(string config_dir, grid_t local_grid_name,
-                                   list<grid_t>& dest_grids,
-                                   list<grid_t>& src_grids)
+void CouplingManager::parse_config(string config_dir, string local_grid_name,
+                                   list<string>& dest_grids,
+                                   list<string>& src_grids)
 {
-    YAML::Node grids, destinations, fields;
+    YAML::Node mappings, fields;
 
     string config_file = config_dir + "/config.yaml";
     if (!file_exists(config_file)) {
         cerr << "Error: " << config_file << " does not exist." << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
-    grids = YAML::LoadFile(config_file)["grids"];
+    mappings = YAML::LoadFile(config_file)["mappings"];
 
-    /* Iterate over grids. */
-    for (size_t i = 0; i < grids.size(); i++) {
-        string src_grid = grids[i]["name"].as<string>();
+    /* Iterate over mappings. */
+    for (size_t i = 0; i < mappings.size(); i++) {
+        string src_grid = grids[i]["source_grid"].as<string>();
+        string dest_grid = grids[i]["destination_grid"].as<string>();
 
-        /* Iterate over destinations for this grid. */
-        destinations = grids[i]["destinations"];
-        for (size_t j = 0; j < destinations.size(); j++) {
-            string dest_grid = destinations[j]["name"].as<string>();
+        /* Check that this combination has not already been seen. */
+        if (dest_grids.find(dest_grid) != dest_grids.end() &&
+            src_grids.find(src_grid) != src_grids.end()) {
+            cerr << "Error: duplicate entry in grid." << endl;
+            cerr << "Mapping with source_grid = " << src_grid << " and "
+                 << " destination_grid = " << dest_grid
+                 << " occurs more than once." << endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
 
-            /* Not allowed to send to self (yet) */
-            assert(dest_grid != src_grid);
+        if (local_grid_name == src_grid) {
+            dest_grids.push_back(dest_grid);
+        } else if (local_grid_name == dest_grid) {
+            src_grids.push_back(src_grid);
+        } else {
+            continue;
+        }
+
+        fields = destinations[i]["fields"];
+        for (size_t k = 0; k < fields.size(); k++) {
+            string field_name = fields[k].as<string>();
 
             if (local_grid_name == src_grid) {
-                dest_grids.push_back(dest_grid);
+               dest_grid_to_fields[dest_grid].push_back(field_name);
             } else if (local_grid_name == dest_grid) {
-                src_grids.push_back(src_grid);
-            }
-
-            /* Iterate over fields for this destination. */
-            fields = destinations[j]["fields"];
-            for (size_t k = 0; k < fields.size(); k++) {
-                string field_name = fields[k].as<string>();
-
-                if (local_grid_name == src_grid) {
-                   dest_grid_to_fields[dest_grid].push_back(field_name);
-                } else if (local_grid_name == dest_grid) {
-                   src_grid_to_fields[src_grid].push_back(field_name);
-                }
+               src_grid_to_fields[src_grid].push_back(field_name);
             }
         }
     }

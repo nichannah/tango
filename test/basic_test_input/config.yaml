@@ -1,22 +1,17 @@
 
-grids:
-    - name: ocean
-      destinations:
-        - name: ice
-          fields: [sst]
-
-    - name: ice
-      destinations:
-        - name: ocean
-          fields: [temp, swflux]
-
 mappings:
-    - file: ocean_to_ice_rmp.nc
-      source_grid: ocean
+    - source_grid: ocean
       destination_grid: ice
       fields: [sst]
 
-    - file: ice_to_ocean_rmp.nc
-      source_grid: ice
+    - source_grid: ice
       destination_grid: ocean
       fields: [temp, swflux]
+
+    - source_grid: atm
+      destination_grid: ice
+      fields: [temp, swflux]
+
+    - source_grid: ice
+      destination_grid: atm
+      fields: [sst]

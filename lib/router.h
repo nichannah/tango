@@ -9,7 +9,6 @@ using namespace std;
 
 typedef unsigned int point_t;
 typedef int tile_id_t;
-typedef string grid_t;
 
 /* A per-rank tile represents a subdomain of a particular grid. */
 class Tile {
@@ -32,10 +31,13 @@ public:
 
     /* Local points to send this tile. */
     vector<point_t> send_points;
+    /* Corrosponding weights for the points above. */
+    vector<double> send_weights;
     /* Local points to recv from this tile. */
     vector<point_t> recv_points;
-    /* Corrosponding weights for the points above. */
-    vector<double> weights;
+    /* Keep the recv_weights around for now, although not needed because they
+     * are applied on the send side. */
+    vector<point_t> recv_weights;
 
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
@@ -59,13 +61,16 @@ private:
 
     int num_ranks;
 
-    map<grid_t, list<Tile *> > grid_tiles;
-    list<grid_t> peer_grids;
+    /* Map grid names to lists of tiles. */
+    map<string, list<Tile *> > grid_tiles;
+    /* Source (to receive from) and destination (to send to) grids. */
+    list<string> src_grids;
+    list<string> dest_grids;
 
-    void remove_unreferenced_tiles(list<Tile *>& to_clean);
+    void remove_unreferenced_tiles(void);
     void read_netcdf(string filename, vector<int>& src_points,
                      vector<int>& dest_points, vector<double>& weights);
-    bool is_peer_grid(grid_t grid);
+    bool is_peer_grid(string grid);
 
 public:
     Router(string grid_name, list<string>& dest_grids, list<string>& src_grids,
@@ -75,9 +80,7 @@ public:
     void build_routing_rules(string config_dir);
     void exchange_descriptions(void);
     void build_rules(void);
-    grid_t get_local_grid_name(void) { return local_grid_name; }
-    list<Tile *>& get_send_tiles(grid_t grid);
-    list<Tile *>& get_recv_tiles(grid_t grid);
+    string get_local_grid_name(void) { return local_grid_name; }
 };
 
 /* A per-process coupling manager. */
@@ -89,14 +92,14 @@ private:
 
     /* Path to directory containing config.yaml and remapping weights files. */
     string config_dir;
-    /* Name of grid that this process is on. */
-    string grid_name;
+    /* The grid that this process is on. */
+    string grid;
 
     /* Mapping from grid name to list of field send/received to/from this grid.
      * This is used for runtime checking. */
-    map<grid_t, list<string> > dest_grid_to_fields;
+    map<string, list<string> > dest_grid_to_fields;
     /* Read this as: the variables that we receive from each grid. */
-    map<grid_t, list<string> > src_grid_to_fields;
+    map<string, list<string> > src_grid_to_fields;
 
 public:
     CouplingManager(string config_dir, string grid_name);
