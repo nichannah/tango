@@ -3,7 +3,11 @@
 #include "gtest/gtest.h"
 #include "router.h"
 
+#include <algorithm>
+
 using namespace std;
+
+/* Single tile tests. */
 
 TEST(Router, exchange_descriptions)
 {
@@ -79,12 +83,28 @@ TEST(Router, build_routing_rules)
      * one tile. */
     EXPECT_EQ(grid_tiles.size(), 1);
 
-    /* Now take a look at the destination and source tiles. */
-    if (local_grid == "ocean") {
-    } else {
+    Tile *tile = grid_tiles.front();
+    EXPECT_EQ(tile->get_send_points().size(), l_cols*l_rows);
+    EXPECT_EQ(tile->get_recv_points().size(), l_cols*l_rows);
+    auto recv_points = tile->get_recv_points();
+    auto send_points = tile->get_send_points();
+
+    if (rank == 0) {
+        for (auto p : send_points) {
+            cout << "Ocean send point " << p << endl;
+        }
+
+    for (int i = 1; i < (l_cols * l_rows) + 1; i++) {
+        /*
+        auto itr = find(recv_points.begin(), recv_points.end(), i);
+        EXPECT_NE(itr, recv_points.end());
+        */
+
+        auto its = find(send_points.begin(), send_points.end(), i);
+        EXPECT_NE(its, send_points.end());
+    }
     }
 }
-
 
 /* These tests need to be run with mpirun -n 2 router_test.exe */
 int main(int argc, char* argv[])
