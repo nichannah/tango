@@ -89,20 +89,12 @@ TEST(Router, build_routing_rules)
     auto recv_points = tile->get_recv_points();
     auto send_points = tile->get_send_points();
 
-    if (rank == 0) {
-        for (auto p : send_points) {
-            cout << "Ocean send point " << p << endl;
-        }
-
     for (int i = 1; i < (l_cols * l_rows) + 1; i++) {
-        /*
         auto itr = find(recv_points.begin(), recv_points.end(), i);
         EXPECT_NE(itr, recv_points.end());
-        */
 
         auto its = find(send_points.begin(), send_points.end(), i);
         EXPECT_NE(its, send_points.end());
-    }
     }
 }
 
