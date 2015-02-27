@@ -59,7 +59,7 @@ bool Tile::has_point(point_t p) const
 point_t Tile::global_to_local_domain(point_t global)
 {
     /* Remapping scheme (ESMF) uses point indexing starting at 1. */
-    point_t local = 1;
+    point_t local = 0;
     for (auto p : points) {
         if (p == global) {
             return local;

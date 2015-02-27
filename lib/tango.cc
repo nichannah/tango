@@ -206,7 +206,6 @@ void tango_end_transfer()
 void tango_finalize()
 {
     complete_comms();
-    cout << "transfer is " << transfer << endl;
     assert(transfer == nullptr);
 
     delete cm;

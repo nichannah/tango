@@ -89,7 +89,7 @@ TEST(Router, build_routing_rules)
     auto recv_points = tile->get_recv_points();
     auto send_points = tile->get_send_points();
 
-    for (int i = 1; i < (l_cols * l_rows) + 1; i++) {
+    for (int i = 0; i < l_cols * l_rows; i++) {
         auto itr = find(recv_points.begin(), recv_points.end(), i);
         EXPECT_NE(itr, recv_points.end());
 

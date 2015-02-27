@@ -42,7 +42,9 @@ TEST(Tango, send_receive)
         tango_finalize();
 
         /* Check that send and receive are the same. */
-
+        for (int i = 0; i < l_rows * l_cols; i++) {
+            EXPECT_EQ(send_sst[i], recv_sst[i]);
+        }
     }
 }
 
