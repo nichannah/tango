@@ -94,7 +94,7 @@ class CouplingManager {
 private:
     /* Router that responsible for arranging communications with other
      * processes. */
-    Router *router;
+    Router *router = nullptr;
 
     /* Path to directory containing config.yaml and remapping weights files. */
     string config_dir;
@@ -109,6 +109,7 @@ private:
 
 public:
     CouplingManager(string config_dir, string grid_name);
+    ~CouplingManager() { delete router; router = nullptr; }
     void build_router(int lis, int lie, int ljs, int lje,
                          int gis, int gie, int gjs, int gje);
     void parse_config(string config_dir, string local_grid_name,

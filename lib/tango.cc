@@ -48,6 +48,8 @@ Transfer::Transfer(int time, string peer)
 static Transfer *transfer;
 static CouplingManager *cm;
 
+/* FIXME: Check return codes of MPI calls. */
+
 /* Pass in the grid name, the extents of the global domain and the extents of
  * the local domain that this proc is responsible for. */
 void tango_init(const char *config, const char *grid_name,
@@ -77,10 +79,11 @@ static void complete_send(Transfer *transfer)
          * that case the MPI comms are not complete. */
         for (auto &ps : transfer->pending_sends) {
             MPI_Wait(ps.request, MPI_STATUS_IGNORE);
-            delete(ps.request);
+            delete ps.request;
             delete[] ps.buffer;
         }
-        delete(transfer);
+        delete transfer;
+        transfer = nullptr;
     }
 }
 
@@ -195,7 +198,7 @@ void tango_end_transfer()
                     offset++;
                 }
             }
-            delete[] recv_buf; 
+            delete[] recv_buf;
         }
     }
 }
@@ -204,4 +207,7 @@ void tango_finalize()
 {
     complete_send(transfer);
     assert(transfer == nullptr);
+
+    delete cm;
+    cm = nullptr;
 }

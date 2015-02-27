@@ -15,6 +15,8 @@ using namespace netCDF;
 #define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 1 + 9)
 #define WEIGHT_THRESHOLD 1e-12
 
+/* FIXME: check return codes of MPI calls. */
+
 static bool file_exists(string file)
 {
     if (access(file.c_str(), F_OK) == -1) {
@@ -334,15 +336,17 @@ void Router::remove_unreferenced_tiles(void)
     for (auto& kv : grid_tiles) {
         auto it = kv.second.begin();
         while (1) {
+            if (it == kv.second.end()) {
+                break;
+            }
+
+            cout << "Before check empty" << endl;
             if ((*it)->send_points_empty() && (*it)->recv_points_empty()) {
                 it = kv.second.erase(it);
             } else {
                 it++;
             }
-
-            if (it == kv.second.end()) {
-                break;
-            }
+            cout << "After check empty" << endl;
         }
     }
 }
@@ -374,6 +378,7 @@ void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
 
     parse_config(this->config_dir, this->grid_name, dest_grids, src_grids);
 
+    assert(router == nullptr);
     router = new Router(this->grid_name, dest_grids, src_grids,
                         lis, lie, ljs, lje, gis, gie, gjs, gje);
     router->exchange_descriptions();
