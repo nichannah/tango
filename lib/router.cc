@@ -102,7 +102,7 @@ void Router::exchange_descriptions(void)
 {
     unsigned int description[DESCRIPTION_SIZE];
     unsigned int *all_descs;
-    int i;
+    unsigned int i;
 
     /* Marshall my description into an array. */
     /* We waste some bytes here when sending the grid name. */
@@ -164,8 +164,9 @@ void Router::exchange_descriptions(void)
     delete[] all_descs;
 }
 
-void Router::read_netcdf(string filename, vector<int>& src_points,
-                         vector<int>& dest_points, vector<double>& weights)
+void Router::read_netcdf(string filename, vector<unsigned int>& src_points,
+                         vector<unsigned int>& dest_points,
+                         vector<double>& weights)
 {
     /* open the remapping weights file */
     NcFile rmp_file(filename, NcFile::read);
@@ -174,14 +175,14 @@ void Router::read_netcdf(string filename, vector<int>& src_points,
     NcVar weights_var = rmp_file.getVar("S");
 
     /* Assume that these are all 1 dimensional. */
-    int src_size = src_var.getDim(0).getSize();
-    int dest_size = dest_var.getDim(0).getSize();
-    int weights_size = weights_var.getDim(0).getSize();
+    unsigned int src_size = src_var.getDim(0).getSize();
+    unsigned int dest_size = dest_var.getDim(0).getSize();
+    unsigned int weights_size = weights_var.getDim(0).getSize();
     assert(src_size == dest_size);
     assert(dest_size == weights_size);
 
-    int *src_data = new int[src_size];
-    int *dest_data = new int[dest_size];
+    unsigned int *src_data = new unsigned int[src_size];
+    unsigned int *dest_data = new unsigned int[dest_size];
     double *weights_data = new double[weights_size];
 
     src_var.getVar(src_data);
@@ -215,8 +216,8 @@ void Router::build_routing_rules(string config_dir)
 
     /* Iterate over all the grids that we send to. */
     for (auto& grid : dest_grids) {
-        vector<int> src_points;
-        vector<int> dest_points;
+        vector<unsigned int> src_points;
+        vector<unsigned int> dest_points;
         vector<double> weights;
 
         /* grid.first is the name, grid.second is the object. */
@@ -241,7 +242,7 @@ void Router::build_routing_rules(string config_dir)
          * which tiles it needs to send/recv to/from. */
         /* FIXME: some kind of check that all our local points are covered. */
         for (const auto point : local_tile->points) {
-            for (int i = 0; i < src_points.size(); i++) {
+            for (unsigned int i = 0; i < src_points.size(); i++) {
                 if ((src_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
                     /* The src_point exists on the local tile. */
@@ -274,8 +275,8 @@ void Router::build_routing_rules(string config_dir)
 
     /* Iterate over all the grids that we receive from. */
     for (auto& grid : src_grids) {
-        vector<int> src_points;
-        vector<int> dest_points;
+        vector<unsigned int> src_points;
+        vector<unsigned int> dest_points;
         vector<double> weights;
 
         string remap_file = config_dir + "/" + grid + "_to_" +
@@ -298,7 +299,7 @@ void Router::build_routing_rules(string config_dir)
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
         for (auto point : local_tile->points) {
-            for (int i = 0; i < dest_points.size(); i++) {
+            for (unsigned int i = 0; i < dest_points.size(); i++) {
                 if ((dest_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
 

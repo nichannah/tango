@@ -114,7 +114,6 @@ void tango_get(const char *field_name, double array[], int size)
 
 void tango_end_transfer()
 {
-    int sender;
     unsigned int offset;
 
     assert(transfer != nullptr);
@@ -151,7 +150,7 @@ void tango_end_transfer()
 
             offset = 0;
             for (const auto& field : transfer->fields) {
-                for (int i = 0; i < points.size(); i++) {
+                for (unsigned int i = 0; i < points.size(); i++) {
                     /* Note that points is in the local coordinate system (not global) */
                     send_buf[offset] = field.buffer[points[i]] * weights[i];
                     offset++;
@@ -189,7 +188,7 @@ void tango_end_transfer()
 
             offset = 0;
             for (const auto& field : transfer->fields) {
-                for (int i = 0; i < points.size(); i++) {
+                for (unsigned int i = 0; i < points.size(); i++) {
                     /* Note that points is in the local coordinate system (not global)
                      * No need to apply weights here, that was done on the send side. */
                     field.buffer[points[i]] = recv_buf[offset];

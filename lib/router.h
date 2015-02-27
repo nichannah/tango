@@ -43,7 +43,7 @@ public:
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
     bool has_point(point_t p) const;
-    int size(void) const { points.size(); }
+    unsigned int size(void) const { return points.size(); }
     const vector<point_t>& get_send_points(void) const
         { return send_points; }
     const vector<point_t>& get_recv_points(void) const
@@ -71,8 +71,9 @@ private:
     unordered_set<string> dest_grids;
 
     void remove_unreferenced_tiles(void);
-    void read_netcdf(string filename, vector<int>& src_points,
-                     vector<int>& dest_points, vector<double>& weights);
+    void read_netcdf(string filename, vector<unsigned int>& src_points,
+                     vector<unsigned int>& dest_points,
+                     vector<double>& weights);
     bool is_peer_grid(string grid);
 
 public:
