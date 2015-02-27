@@ -1,9 +1,9 @@
 
+#include <algorithm>
+
 #include "mpi.h"
 #include "gtest/gtest.h"
 #include "router.h"
-
-#include <algorithm>
 
 using namespace std;
 
@@ -15,7 +15,7 @@ TEST(Router, exchange_descriptions)
     int g_rows = 4, g_cols = 4, l_rows = 4, l_cols = 4;
     unordered_set<string> dest_grids, src_grids;
 
-    string config_dir = "./basic_test_input/";
+    string config_dir = "./test_input-2_mappings-2_grids/";
     string local_grid, peer_grid;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -60,7 +60,7 @@ TEST(Router, build_routing_rules)
     int g_rows = 4, g_cols = 4, l_rows = 4, l_cols = 4;
     unordered_set<string> dest_grids, src_grids;
 
-    string config_dir = "./basic_test_input/";
+    string config_dir = "./test_input-2_mappings-2_grids/";
     string local_grid, peer_grid;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);

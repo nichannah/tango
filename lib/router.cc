@@ -348,11 +348,8 @@ void Router::remove_unreferenced_tiles(void)
 
 bool Router::is_peer_grid(string grid)
 {
-    if (dest_grids.find(grid) != dest_grids.end()) {
-        return true;
-    }
-
-    if (src_grids.find(grid) != src_grids.end()) {
+    if ((dest_grids.find(grid) != dest_grids.end()) ||
+        (src_grids.find(grid) != src_grids.end())) {
         return true;
     }
 

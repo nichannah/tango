@@ -11,7 +11,7 @@ TEST(CouplingManagerTest, parse_config)
 {
     unordered_set<string> dest_grids, src_grids;
 
-    string config_dir = "./basic_test_input/";
+    string config_dir = "./test_input-2_mappings-2_grids/";
     string grid = "ocean";
 
     CouplingManager cm(config_dir, grid);

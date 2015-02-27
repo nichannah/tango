@@ -4,10 +4,6 @@ Import('env')
 
 env.SharedLibrary('libtango-stub.so', ['tango-stub.cc'])
 
-env.Program('atm.exe', ['atm.cc'], LIBPATH='#lib', LIBS='tango')
-env.Program('ocean.exe', ['ocean.cc'], LIBPATH='#lib', LIBS='tango')
-
-
 libpath = ['#lib', os.path.join(os.environ['HOME'], '.local', 'lib')]
 libs = ['tango', 'gtest_main', 'gtest']
 gtest_include = os.path.join(os.environ['HOME'], '.local', 'include')
