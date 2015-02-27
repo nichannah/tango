@@ -43,6 +43,7 @@ public:
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
     bool has_point(point_t p) const;
+    int size(void) const { points.size(); }
     const vector<point_t>& get_send_points(void) const
         { return send_points; }
     const vector<point_t>& get_recv_points(void) const
