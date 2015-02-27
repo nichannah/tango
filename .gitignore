@@ -20,4 +20,4 @@ a.out
 *.nc
 
 # ESMF
-PET0.RegridWeightGen.Log
+*.RegridWeightGen.Log
