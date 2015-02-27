@@ -34,8 +34,20 @@ TEST(Router, exchange_descriptions)
     r.exchange_descriptions();
 
     list<Tile *>& grid_tiles = r.get_grid_tiles(peer_grid);
-
     EXPECT_EQ(grid_tiles.size(), 1);
+
+    /* Check the details of this tile. */
+    Tile *tile = grid_tiles.front();
+    if (rank == 0) {
+        EXPECT_EQ(tile->get_id(), 1);
+    } else {
+        EXPECT_EQ(rank, 1);
+        EXPECT_EQ(tile->get_id(), 0);
+    }
+
+    for (int i = 1; i < (g_cols * g_rows) + 1; i++) {
+        EXPECT_EQ(tile->has_point(i), true);
+    }
 }
 
 TEST(Router, build_routing_rules)
@@ -61,13 +73,11 @@ TEST(Router, build_routing_rules)
     cm.build_router(0, l_rows, 0, l_cols, 0, g_rows, 0, g_cols);
     Router *router = cm.get_router();
 
-    list<Tile *>& dest_tiles = router->get_grid_tiles(peer_grid);
-    list<Tile *>& src_tiles = router->get_grid_tiles(peer_grid);
+    list<Tile *>& grid_tiles = router->get_grid_tiles(peer_grid);
 
     /* Since the local domain covers the entire global domain we expect only
      * one tile. */
-    EXPECT_EQ(dest_tiles.size(), 1);
-    EXPECT_EQ(src_tiles.size(), 1);
+    EXPECT_EQ(grid_tiles.size(), 1);
 
     /* Now take a look at the destination and source tiles. */
     if (local_grid == "ocean") {

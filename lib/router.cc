@@ -1,8 +1,9 @@
 
+#include <fstream>
+#include <algorithm>
 #include <netcdf>
 #include <mpi.h>
 #include <assert.h>
-#include <fstream>
 #include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
@@ -12,7 +13,7 @@ using namespace netCDF;
 
 #define MAX_GRID_NAME_SIZE 32
 #define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 1 + 9)
-#define WEIGHT_THRESHOLD 1e12
+#define WEIGHT_THRESHOLD 1e-12
 
 static bool file_exists(string file)
 {
@@ -25,7 +26,8 @@ static bool file_exists(string file)
 
 Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje)
-    : id(tile_id), lis(lis), lie(lie), ljs(ljs), lje(lje)
+    : id(tile_id), lis(lis), lie(lie), ljs(ljs), lje(lje),
+      gis(gis), gie(lie), gjs(ljs), gje(gje)
 {
     /* Set up list of points that this tile is responsible for with a global
      * reference. */
@@ -48,12 +50,8 @@ Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
 
 bool Tile::has_point(point_t p) const
 {
-    for (auto point : points) {
-        if (p == point) {
-            return true;
-        }
-    }
-    return false;
+    auto it = find(points.begin(), points.end(), p);
+    return (it != points.end());
 }
 
 point_t Tile::global_to_local_domain(point_t global)

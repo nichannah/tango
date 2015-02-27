@@ -7,11 +7,3 @@ mappings:
     - source_grid: ice
       destination_grid: ocean
       fields: [temp, swflux]
-
-    - source_grid: atm
-      destination_grid: ice
-      fields: [temp, swflux]
-
-    - source_grid: ice
-      destination_grid: atm
-      fields: [sst]

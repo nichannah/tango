@@ -124,8 +124,7 @@ void tango_end_transfer()
     if (transfer->total_send_size != 0) {
 
         /* Iterate over the tiles we communicate with. */
-        for (const auto *tile :
-             router->get_grid_tiles(transfer->get_peer_grid())) {
+        for (const auto *tile : router->get_grid_tiles(transfer->get_peer_grid())) {
 
             if (tile->send_points_empty()) {
                 /* There are no local points which need to be sent to this
@@ -169,8 +168,7 @@ void tango_end_transfer()
         /* We are the receiver. This is the reverse of above but we do a
          * blocking receive. */
 
-        for (const auto *tile :
-             router->get_grid_tiles(transfer->get_peer_grid())) {
+        for (const auto *tile : router->get_grid_tiles(transfer->get_peer_grid())) {
 
             if (tile->recv_points_empty()) {
                 continue;
