@@ -340,13 +340,11 @@ void Router::remove_unreferenced_tiles(void)
                 break;
             }
 
-            cout << "Before check empty" << endl;
             if ((*it)->send_points_empty() && (*it)->recv_points_empty()) {
                 it = kv.second.erase(it);
             } else {
                 it++;
             }
-            cout << "After check empty" << endl;
         }
     }
 }

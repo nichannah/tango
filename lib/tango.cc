@@ -72,7 +72,7 @@ void tango_init(const char *config, const char *grid_name,
     cm->build_router(lis, lie, ljs, lje, gis, gie, gjs, gje);
 }
 
-static void complete_send(Transfer *transfer)
+static void complete_comms(void)
 {
     if (transfer != nullptr) {
         /* A transfer object can be left over from a previous tango call. In
@@ -89,7 +89,7 @@ static void complete_send(Transfer *transfer)
 
 void tango_begin_transfer(int time, const char* grid)
 {
-    complete_send(transfer);
+    complete_comms();
     transfer = new Transfer(time, string(grid));
 }
 
@@ -205,7 +205,8 @@ void tango_end_transfer()
 
 void tango_finalize()
 {
-    complete_send(transfer);
+    complete_comms();
+    cout << "transfer is " << transfer << endl;
     assert(transfer == nullptr);
 
     delete cm;
