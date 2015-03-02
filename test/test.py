@@ -113,6 +113,7 @@ class TestTango(unittest.TestCase):
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)
             tango.begin_transfer(0, 'ice')
             tango.put('sst', send_sst)
+            tango.put('sss', send_sss)
             tango.end_transfer()
 
             tango.begin_transfer(0, 'ice')
@@ -123,6 +124,7 @@ class TestTango(unittest.TestCase):
 
         else:
             recv_sst = np.zeros(len(send_sst))
+            recv_sss = np.zeros(len(send_sss))
 
             grid_name = 'ice'
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)
@@ -132,9 +134,11 @@ class TestTango(unittest.TestCase):
 
             tango.begin_transfer(0, 'ocean')
             tango.get('sst', recv_sst)
+            tango.get('sss', recv_sss)
             tango.end_transfer()
 
             assert(np.array_equal(send_sst, recv_sst))
+            assert(np.array_equal(send_sss, recv_sss))
 
         tango.finalize()
 

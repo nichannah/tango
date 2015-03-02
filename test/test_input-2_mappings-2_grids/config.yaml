@@ -2,7 +2,7 @@
 mappings:
     - source_grid: ocean
       destination_grid: ice
-      fields: [sst]
+      fields: [sst, sss]
 
     - source_grid: ice
       destination_grid: ocean
