@@ -52,14 +52,15 @@ static CouplingManager *cm;
 
 /* Pass in the grid name, the extents of the global domain and the extents of
  * the local domain that this proc is responsible for. */
-void tango_init(const char *config, const char *grid_name,
-                /* Local  domain */
-                unsigned int lis, unsigned int lie,
-                unsigned int ljs, unsigned int lje,
-                /* Global domain */
-                unsigned int gis, unsigned int gie,
-                unsigned int gjs, unsigned int gje)
+int tango_init(const char *config, const char *grid_name,
+               /* Local  domain */
+               unsigned int lis, unsigned int lie,
+               unsigned int ljs, unsigned int lje,
+               /* Global domain */
+               unsigned int gis, unsigned int gie,
+               unsigned int gjs, unsigned int gje)
 {
+    int tile_id;
     assert(cm == nullptr);
     assert(transfer == nullptr);
 
@@ -69,7 +70,9 @@ void tango_init(const char *config, const char *grid_name,
     /* Build the coupling manager for this process. This lasts for the lifetime
      * of the process. */
     cm = new CouplingManager(string(config), string(grid_name));
-    cm->build_router(lis, lie, ljs, lje, gis, gie, gjs, gje);
+    tile_id = cm->build_router(lis, lie, ljs, lje, gis, gie, gjs, gje);
+
+    return tile_id;
 }
 
 static void complete_comms(void)

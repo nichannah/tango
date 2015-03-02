@@ -60,7 +60,7 @@ class Router {
 private:
 
     string local_grid_name;
-    Tile *local_tile;
+    Tile *local_tile = nullptr;
 
     int num_ranks;
 
@@ -85,6 +85,8 @@ public:
     void build_routing_rules(string config_dir);
     void exchange_descriptions(void);
     void build_rules(void);
+    int get_tile_id(void) const
+        { assert(local_tile != nullptr); return local_tile->id; }
     list<Tile *>& get_grid_tiles(string grid);
     string get_local_grid_name(void) { return local_grid_name; }
 };
@@ -110,8 +112,8 @@ private:
 public:
     CouplingManager(string config_dir, string grid_name);
     ~CouplingManager() { delete router; router = nullptr; }
-    void build_router(int lis, int lie, int ljs, int lje,
-                         int gis, int gie, int gjs, int gje);
+    int build_router(int lis, int lie, int ljs, int lje,
+                     int gis, int gie, int gjs, int gje);
     void parse_config(string config_dir, string local_grid_name,
                       unordered_set<string>& dest_grids,
                       unordered_set<string>& src_grids);

@@ -369,8 +369,8 @@ CouplingManager::CouplingManager(string config_dir, string grid_name)
     : config_dir(config_dir), grid_name(grid_name) {}
 
 /* Separate this from the constructor to make testing easier. */
-void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
-                                   int gis, int gie, int gjs, int gje)
+int CouplingManager::build_router(int lis, int lie, int ljs, int lje,
+                                  int gis, int gie, int gjs, int gje)
 {
     unordered_set<string> dest_grids, src_grids;
 
@@ -381,6 +381,8 @@ void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
                         lis, lie, ljs, lje, gis, gie, gjs, gje);
     router->exchange_descriptions();
     router->build_routing_rules(this->config_dir);
+
+    return router->get_tile_id();
 }
 
 /* Parse yaml config file. Find out which grids communicate and through which

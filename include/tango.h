@@ -3,7 +3,7 @@
 
 #define DLLEXPORT extern "C"
 
-DLLEXPORT void tango_init(const char *config, const char *grid_name,
+DLLEXPORT int tango_init(const char *config, const char *grid_name,
                 /* Local  domain */
                 unsigned int lis, unsigned int lie,
                 unsigned int ljs, unsigned int lje,

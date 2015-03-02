@@ -2,13 +2,11 @@ import os
 
 Import('env')
 
-env.SharedLibrary('libtango-stub.so', ['tango-stub.cc'])
-
 libpath = ['#lib', os.path.join(os.environ['HOME'], '.local', 'lib')]
 libs = ['tango', 'gtest_main', 'gtest']
 gtest_include = os.path.join(os.environ['HOME'], '.local', 'include')
 
-test_env = env.Clone(CXXFLAGS='-isystem {}'.format(gtest_include),
+test_env = env.Clone(CXXFLAGS=['-std=c++11', '-isystem {}'.format(gtest_include)],
                      LIBPATH=libpath,  LIBS=libs)
 # The test code needs the internal headers.
 test_env.Append(CPPPATH='#lib')
