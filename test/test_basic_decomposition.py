@@ -22,8 +22,14 @@ send_temp = np.array([302.1, 305.7, 300.5, 307.9,
                       302.1, 305.2, 300.8, 304.7,
                       303.3, 290.1, 397.8, 303.4]);
 
-class TestTango(unittest.TestCase):
+class TestBasicDecomposition(unittest.TestCase):
+    """
+    Tests with only one tile per grid.
 
+    These tests should be called with:
+        mpirun -n 2 ./bin/python-mpi test/test_basic_decomposition.py
+    
+    """
 
     def setUp(self):
         self.test_dir = os.path.dirname(os.path.realpath(__file__))
@@ -73,7 +79,7 @@ class TestTango(unittest.TestCase):
 
     def test_multiple_variable_send_receive(self):
         """
-        Send multiple arrays. 
+        Send multiple arrays.
         """
 
         grid_name = 'ocean'

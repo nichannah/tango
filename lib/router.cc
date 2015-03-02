@@ -29,7 +29,7 @@ static bool file_exists(string file)
 Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje)
     : id(tile_id), lis(lis), lie(lie), ljs(ljs), lje(lje),
-      gis(gis), gie(lie), gjs(ljs), gje(gje)
+      gis(gis), gie(gie), gjs(gjs), gje(gje)
 {
     /* Set up list of points that this tile is responsible for with a global
      * reference. */
@@ -258,10 +258,10 @@ void Router::build_routing_rules(string config_dir)
 
         /* Check consistency between domain info supplied by code and weights
          * file. */
-        if (src_points.size() != local_tile->size()) {
+        if (src_points.size() != local_tile->global_size()) {
             cerr << "Error: weights domain size != coupler domain size." << endl;
             cerr << "Weights domain size: " << src_points.size() << endl;
-            cerr << "Coupler domain size: " << local_tile->size() << endl;
+            cerr << "Coupler domain size: " << local_tile->global_size() << endl;
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
 
@@ -316,10 +316,10 @@ void Router::build_routing_rules(string config_dir)
 
         /* Check consistency between domain info supplied by code and weights
          * file. */
-        if (src_points.size() != local_tile->size()) {
+        if (src_points.size() != local_tile->global_size()) {
             cerr << "Error: weights domain size != coupler domain size." << endl;
             cerr << "Weights domain size: " << src_points.size() << endl;
-            cerr << "Coupler domain size: " << local_tile->size() << endl;
+            cerr << "Coupler domain size: " << local_tile->global_size() << endl;
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
 
