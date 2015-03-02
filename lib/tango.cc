@@ -30,7 +30,6 @@ PendingSend::PendingSend(MPI_Request *request, double *buffer)
 class Transfer {
 private:
     int curr_time;
-    int sender;
     /* Name of grid that this transfer is sending/recieving to/from. */
     string peer_grid;
 public:
@@ -143,7 +142,7 @@ void tango_end_transfer()
 
             if (tile->send_points_empty()) {
                 /* There are no local points which need to be sent to this
-                 * tile. 
+                 * tile.
                  *
                  * Skipping through these is unlikely to be a performance
                  * problem becaus the list of tiles contains only those which
@@ -159,6 +158,13 @@ void tango_end_transfer()
              * sent at once. */
             int count = points.size() * transfer->fields.size();
             double *send_buf = new double[count];
+
+            cout << "grid " << router->get_local_grid_name() << " is sending points ";
+            for (unsigned int i = 0; i < points.size(); i++) {
+                cout << points[i] << " ";
+            }
+            cout << endl;
+            cout << " to tile id: " << tile->id << endl;
 
             offset = 0;
             for (const auto& field : transfer->fields) {
@@ -190,6 +196,13 @@ void tango_end_transfer()
             }
 
             const auto& points = tile->get_recv_points();
+
+            cout << "grid " << router->get_local_grid_name() << " is receiving points ";
+            for (unsigned int i = 0; i < points.size(); i++) {
+                cout << points[i] << " ";
+            }
+            cout << endl;
+            cout << " from tile id: " << tile->id << endl;
 
             int count = points.size() * transfer->fields.size();
             double *recv_buf = new double[count];

@@ -183,6 +183,8 @@ void Router::exchange_descriptions(void)
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
+            cout << "Adding tile id " << t->id << " as peer to " << local_grid_name << endl;
+            cout << "Grid " << grid_name << " is a peer to " << local_grid_name << endl;
             grid_tiles[grid_name].push_back(t);
         }
     }
