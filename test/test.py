@@ -23,15 +23,11 @@ class TestInterface(unittest.TestCase):
         else:
             tango = coupler.Tango(config, 'ice', 0, 4, 0, 4, 0, 4, 0, 4)
 
-        print('Id is {}'.format(self.rank))
-
-    def test_other(self):
-        print('Id is {}'.format(self.rank))
-        pass
+        tango.finalize()
 
 if __name__ == '__main__':
-    # This interpreter doesn't like exit() being called, then there is no
-    # chance to call MPI_Finalize()
+    # This interpreter doesn't like exit() being called, because it doesn't
+    # leave a change for MPI_Finalize() to be called. 
     try:
         unittest.main()
     except SystemExit:

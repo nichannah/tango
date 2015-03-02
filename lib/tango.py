@@ -42,4 +42,3 @@ class Tango:
     def finalize(self):
         self.lib.tango_finalize()
         self.lib = None
-        self.mpi.call_mpi_finalize()
