@@ -28,7 +28,6 @@ TEST(Tango, send_receive)
         tango_begin_transfer(0, "ice");
         tango_put("sst", send_sst, l_rows * l_cols);
         tango_end_transfer();
-        tango_finalize();
 
     } else {
         double recv_sst[l_rows * l_cols] = {};
@@ -39,13 +38,14 @@ TEST(Tango, send_receive)
         tango_begin_transfer(0, "ocean");
         tango_get("sst", recv_sst, l_rows * l_cols);
         tango_end_transfer();
-        tango_finalize();
 
         /* Check that send and receive are the same. */
         for (int i = 0; i < l_rows * l_cols; i++) {
             EXPECT_EQ(send_sst[i], recv_sst[i]);
         }
     }
+
+    tango_finalize();
 }
 
 int main(int argc, char* argv[])

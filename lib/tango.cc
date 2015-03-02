@@ -60,8 +60,7 @@ void tango_init(const char *config, const char *grid_name,
                unsigned int gis, unsigned int gie,
                unsigned int gjs, unsigned int gje)
 {
-    assert(cm == nullptr);
-    assert(transfer == nullptr);
+    transfer = nullptr;
 
     /* FIXME: what to do about Fortran indexing convention here. For the time
      * being stick to C++/Python. */
@@ -97,8 +96,13 @@ void tango_put(const char *field_name, double array[], int size)
 {
     assert(transfer != NULL);
     assert(transfer->total_recv_size == 0);
-    assert(cm->can_send_field_to_grid(string(field_name),
-                                      transfer->get_peer_grid()));
+    if (!cm->can_send_field_to_grid(string(field_name),
+                                    transfer->get_peer_grid())) {
+        cerr << "Error: according to config.yaml " << string(field_name)
+             << " can't be put to " << transfer->get_peer_grid()
+             << " grid" << endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
     transfer->total_send_size += size;
     transfer->fields.push_back(Field(array, size));
@@ -108,8 +112,13 @@ void tango_get(const char *field_name, double array[], int size)
 {
     assert(transfer != nullptr);
     assert(transfer->total_send_size == 0);
-    assert(cm->can_recv_field_from_grid(string(field_name),
-                                        transfer->get_peer_grid()));
+    if (!cm->can_recv_field_from_grid(string(field_name),
+                                      transfer->get_peer_grid())) {
+        cerr << "Error: according to config.yaml " << string(field_name)
+             << " can't be get from " << transfer->get_peer_grid() << " grid "
+             << endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 
     transfer->total_recv_size += size;
     transfer->fields.push_back(Field(array, size));
