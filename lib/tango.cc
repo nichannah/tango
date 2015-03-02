@@ -159,13 +159,6 @@ void tango_end_transfer()
             int count = points.size() * transfer->fields.size();
             double *send_buf = new double[count];
 
-            cout << "grid " << router->get_local_grid_name() << " is sending points ";
-            for (unsigned int i = 0; i < points.size(); i++) {
-                cout << points[i] << " ";
-            }
-            cout << endl;
-            cout << " to tile id: " << tile->id << endl;
-
             offset = 0;
             for (const auto& field : transfer->fields) {
                 for (unsigned int i = 0; i < points.size(); i++) {
@@ -196,13 +189,6 @@ void tango_end_transfer()
             }
 
             const auto& points = tile->get_recv_points();
-
-            cout << "grid " << router->get_local_grid_name() << " is receiving points ";
-            for (unsigned int i = 0; i < points.size(); i++) {
-                cout << points[i] << " ";
-            }
-            cout << endl;
-            cout << " from tile id: " << tile->id << endl;
 
             int count = points.size() * transfer->fields.size();
             double *recv_buf = new double[count];

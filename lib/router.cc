@@ -58,7 +58,6 @@ bool Tile::has_point(point_t p) const
 
 point_t Tile::global_to_local_domain(point_t global)
 {
-    /* Remapping scheme (ESMF) uses point indexing starting at 1. */
     point_t local = 0;
     for (auto p : points) {
         if (p == global) {
@@ -183,8 +182,6 @@ void Router::exchange_descriptions(void)
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
-            cout << "Adding tile id " << t->id << " as peer to " << local_grid_name << endl;
-            cout << "Grid " << grid_name << " is a peer to " << local_grid_name << endl;
             grid_tiles[grid_name].push_back(t);
         }
     }
@@ -291,7 +288,7 @@ void Router::build_routing_rules(string config_dir)
                              * is going to use an index which starts at 0.
                              * Therefore it's necessary to convert into the
                              * local coordinate system. */
-                            point_t p = tile->global_to_local_domain(src_points[i]);
+                            point_t p = local_tile->global_to_local_domain(src_points[i]);
                             tile->send_points.push_back(p);
                             tile->send_weights.push_back(weights[i]);
                             break;
@@ -337,8 +334,10 @@ void Router::build_routing_rules(string config_dir)
                      * dest_point. */
                     for (auto *tile : grid_tiles[grid]) {
                         if (tile->has_point(src_points[i])) {
-                            /* Add to the list of points and weights. */
-                            point_t p = tile->global_to_local_domain(dest_points[i]);
+                            /* Add to the list of points and weights. Once
+                             * again the recv_points/send_points is the index
+                             * that the local tile receives or sends on. */
+                            point_t p = local_tile->global_to_local_domain(dest_points[i]);
                             tile->recv_points.push_back(p);
                             tile->recv_weights.push_back(weights[i]);
                             break;

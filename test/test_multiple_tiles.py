@@ -8,20 +8,6 @@ import tango as coupler
 import ctypes as ct
 import numpy as np
 
-send_sst = np.array([292.1, 295.7, 290.5, 287.9,
-                     291.3, 294.3, 291.8, 290.0,
-                     292.1, 295.2, 290.8, 284.7,
-                     293.3, 290.1, 297.8, 293.4]);
-send_sss = np.array([32.1, 33.7, 33.5, 34.9,
-                     31.3, 35.3, 33.8, 36.0,
-                     30.1, 31.2, 31.8, 37.7,
-                     29.3, 34.1, 29.8, 39.4]);
-# Air temp.
-send_temp = np.array([302.1, 305.7, 300.5, 307.9,
-                      301.3, 304.3, 301.8, 300.0,
-                      302.1, 305.2, 300.8, 304.7,
-                      303.3, 290.1, 397.8, 303.4]);
-
 class TestMultipleTiles(unittest.TestCase):
     """
     Tests with only multiple tiles per grid.
@@ -44,22 +30,26 @@ class TestMultipleTiles(unittest.TestCase):
 
         grid_name = 'ocean'
 
+        send_sst = np.arange(16.0)
         config = os.path.join(self.test_dir, 'test_input-1_mappings-2_grids')
 
         if self.rank == 0:
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 2, 0, 4, 0, 4)
             tango.begin_transfer(0, 'ice')
-            tango.put('sst', send_sst[0:8])
+            # FIXME: figure out why this is necessary.
+            tmp = np.array((send_sst.reshape(4, 4)[:,0:2]).flatten())
+            tango.put('sst', tmp)
             tango.end_transfer()
 
         elif self.rank == 1:
             tango = coupler.Tango(config, grid_name, 0, 4, 2, 4, 0, 4, 0, 4)
             tango.begin_transfer(0, 'ice')
-            tango.put('sst', send_sst[8:16])
+            tmp = np.array((send_sst.reshape(4, 4)[:,2:4]).flatten())
+            tango.put('sst', tmp)
             tango.end_transfer()
 
         else:
-            recv_sst = np.ones(len(send_sst))
+            recv_sst = np.ones(len(send_sst), dtype='double')
 
             grid_name = 'ice'
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)
@@ -67,9 +57,7 @@ class TestMultipleTiles(unittest.TestCase):
             tango.get('sst', recv_sst)
             tango.end_transfer()
 
-            print('len(recv_sst): {}'.format(len(recv_sst)))
-            print('recv_sst: {}'.format(recv_sst))
-            #assert(np.array_equal(send_sst, recv_sst))
+            assert(np.array_equal(send_sst, recv_sst))
 
         tango.finalize()
 
