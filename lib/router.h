@@ -52,6 +52,9 @@ public:
     const vector<double>& get_recv_weights(void) const { return recv_weights; }
     bool send_points_empty(void) const { return send_points.empty(); }
     bool recv_points_empty(void) const { return recv_points.empty(); }
+    bool domain_equal(unsigned int lis, unsigned int lie, unsigned int ljs,
+                      unsigned int lje, unsigned int gis, unsigned int gie,
+                      unsigned int gjs, unsigned int gje);
     point_t global_to_local_domain(point_t global);
     tile_id_t get_id(void) const { return id; }
 };
@@ -79,8 +82,9 @@ private:
 public:
     Router(string grid_name, unordered_set<string>& dest_grids,
            unordered_set<string>& src_grids,
-           int lis, int lie, int ljs, int lje,
-           int gis, int gie, int gjs, int gje);
+           unsigned int lis, unsigned int lie, unsigned int ljs,
+           unsigned int lje, unsigned int gis, unsigned int gie,
+           unsigned int gjs, unsigned int gje);
     ~Router();
     void build_routing_rules(string config_dir);
     void exchange_descriptions(void);

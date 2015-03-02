@@ -13,10 +13,9 @@ class TestInterface(unittest.TestCase):
 
     def test_init(self):
 
-        config = os.path.join(self.test_dir, 'config.yaml')
-        print('Config = {}'.format(config))
+        config = os.path.join(self.test_dir, 'test_input-1_mappings-2_grids')
         tango = coupler.Tango()
-        id = tango.init(config, 'ocean', 0, 1, 0, 1, 0, 1, 0, 1)
+        id = tango.init(config, 'ocean', 0, 4, 0, 4, 0, 4, 0, 4)
         print('Id is {}'.format(id))
 
     def test_other(self):

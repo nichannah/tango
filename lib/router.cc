@@ -69,11 +69,21 @@ point_t Tile::global_to_local_domain(point_t global)
     assert(false);
 }
 
+bool Tile::domain_equal(unsigned int lis, unsigned int lie, unsigned int ljs,
+                        unsigned int lje, unsigned int gis, unsigned int gie,
+                        unsigned int gjs, unsigned int gje)
+{
+    return ((this->lis == lis) && (this->lie == lie) && (this->ljs == ljs)
+            && (this->lje == lje) && (this->gis == gis) && (this->gie == gie)
+            && (this->gjs == gjs) && (this->gje == gje));
+}
+
 Router::Router(string grid_name,
                unordered_set<string>& dest_grid_names,
                unordered_set<string>& src_grid_names,
-               int lis, int lie, int ljs, int lje,
-               int gis, int gie, int gjs, int gje) : local_grid_name(grid_name)
+               unsigned int lis, unsigned int lie, unsigned int ljs,
+               unsigned int lje, unsigned int gis, unsigned int gie,
+               unsigned int gjs, unsigned int gje) : local_grid_name(grid_name)
 {
     tile_id_t tile_id;
 
@@ -102,8 +112,8 @@ Router::~Router()
  * the information to set up their routers. */
 void Router::exchange_descriptions(void)
 {
-    unsigned int description[DESCRIPTION_SIZE];
-    unsigned int *all_descs;
+    int description[DESCRIPTION_SIZE];
+    int *all_descs;
     unsigned int i;
 
     /* Marshall my description into an array. */
@@ -129,10 +139,10 @@ void Router::exchange_descriptions(void)
 
     /* MPI_UNSIGNED has size 8 so we use MPI_INT. */
     /* Distribute all_descriptions. */
-    all_descs = new unsigned int[DESCRIPTION_SIZE * num_ranks];
-    MPI_Gather(description, DESCRIPTION_SIZE, MPI_UNSIGNED, all_descs,
+    all_descs = new int[DESCRIPTION_SIZE * num_ranks];
+    MPI_Gather(description, DESCRIPTION_SIZE, MPI_INT, all_descs,
                DESCRIPTION_SIZE, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-    MPI_Bcast(all_descs, DESCRIPTION_SIZE * num_ranks, MPI_UNSIGNED,
+    MPI_Bcast(all_descs, DESCRIPTION_SIZE * num_ranks, MPI_INT,
               0, MPI_COMM_WORLD);
 
     /* Unmarshall into Tile objects. */
@@ -147,7 +157,22 @@ void Router::exchange_descriptions(void)
             }
         }
 
-        /* Note that below no tiles are made for grids that we don't
+        if (all_descs[j] == local_tile->id) {
+            /* This is us. */
+            continue;
+        }
+
+        /* Check that there are no duplicate tiles. */
+        if ((grid_name == local_grid_name) &&
+            local_tile->domain_equal(all_descs[j+1], all_descs[j+2],
+                                     all_descs[j+3], all_descs[j+4],
+                                     all_descs[j+5], all_descs[j+6],
+                                     all_descs[j+7], all_descs[j+8])) {
+            cerr << "Error: multiple tiles with the same domain on grid: "
+                 << grid_name << endl;
+        }
+
+        /* Note that below no tiles kept for grids that we don't
          * communicate with, including ourselves. */
 
         /* Make a new tile and insert into list of tiles for this grid. This

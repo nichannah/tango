@@ -5,5 +5,4 @@ Import('env')
 lib_paths = [os.environ['HOME'] + '/.local/lib/']
 libs = ['netcdf_c++4', 'yaml-cpp']
 
-env.SharedLibrary('libmpi_setup.so', ['mpi_setup.c'])
 env.SharedLibrary('libtango.so', ['tango.cc', 'router.cc'], LIBPATH=lib_paths, LIBS=libs)
