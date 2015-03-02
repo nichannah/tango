@@ -36,7 +36,7 @@ class TestMultipleTiles(unittest.TestCase):
         if self.rank == 0:
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 2, 0, 4, 0, 4)
             tango.begin_transfer(0, 'ice')
-            # FIXME: figure out why this is necessary.
+            # Copy into a consective array. */
             tmp = np.array((send_sst.reshape(4, 4)[:,0:2]).flatten())
             tango.put('sst', tmp)
             tango.end_transfer()
