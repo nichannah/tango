@@ -116,7 +116,7 @@ private:
 public:
     CouplingManager(string config_dir, string grid_name);
     ~CouplingManager() { delete router; router = nullptr; }
-    int build_router(int lis, int lie, int ljs, int lje,
+    void build_router(int lis, int lie, int ljs, int lje,
                      int gis, int gie, int gjs, int gje);
     void parse_config(string config_dir, string local_grid_name,
                       unordered_set<string>& dest_grids,

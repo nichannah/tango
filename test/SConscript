@@ -2,6 +2,8 @@ import os
 
 Import('env')
 
+env.SharedLibrary('libmpicommrank.so', ['mpi_comm_rank.cc'])
+
 libpath = ['#lib', os.path.join(os.environ['HOME'], '.local', 'lib')]
 libs = ['tango', 'gtest_main', 'gtest']
 gtest_include = os.path.join(os.environ['HOME'], '.local', 'include')
