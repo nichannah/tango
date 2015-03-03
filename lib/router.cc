@@ -15,8 +15,6 @@ using namespace netCDF;
 #define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 1 + 9)
 #define WEIGHT_THRESHOLD 1e-12
 
-/* FIXME: check return codes of MPI calls. */
-
 static bool file_exists(string file)
 {
     if (access(file.c_str(), F_OK) == -1) {
@@ -246,7 +244,6 @@ void Router::build_routing_rules(string config_dir)
         vector<unsigned int> dest_points;
         vector<double> weights;
 
-        /* grid.first is the name, grid.second is the object. */
         string remap_file = config_dir + "/" + local_grid_name + "_to_" +
                             grid + "_rmp.nc";
         if (!file_exists(remap_file)) {
@@ -256,7 +253,8 @@ void Router::build_routing_rules(string config_dir)
         read_netcdf(remap_file, src_points, dest_points, weights);
 
         /* Check consistency between domain info supplied by code and weights
-         * file. */
+         * file. FIXME: the following may not be the case for some
+         * interpolation schemes. */
         if (src_points.size() != local_tile->global_size()) {
             cerr << "Error: weights domain size != coupler domain size." << endl;
             cerr << "Weights domain size: " << src_points.size() << endl;

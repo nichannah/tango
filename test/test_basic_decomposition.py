@@ -8,6 +8,7 @@ import tango as coupler
 import ctypes as ct
 import numpy as np
 
+# FIXME: remove these. Just use auto-generated.
 send_sst = np.array([292.1, 295.7, 290.5, 287.9,
                      291.3, 294.3, 291.8, 290.0,
                      292.1, 295.2, 290.8, 284.7,
@@ -28,7 +29,6 @@ class TestBasicDecomposition(unittest.TestCase):
 
     These tests should be called with:
         mpirun -n 2 ./bin/python-mpi test/test_basic_decomposition.py
-    
     """
 
     def setUp(self):
@@ -75,7 +75,6 @@ class TestBasicDecomposition(unittest.TestCase):
             assert(np.array_equal(send_sst, recv_sst))
 
         tango.finalize()
-
 
     def test_multiple_variable_send_receive(self):
         """
