@@ -12,7 +12,7 @@ TEST(Tango, send_receive)
     int rank;
     int g_rows = 4, g_cols = 4, l_rows = 4, l_cols = 4;
 
-    string config_dir = "./test_input-1_mappings-2_grids/";
+    string config_dir = "./test_input-1_mappings-2_grids-4x4_to_4x4/";
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -48,6 +48,45 @@ TEST(Tango, send_receive)
     tango_finalize();
 }
 
+/* Do single field send/receive between grids of different sizes. */
+TEST(Tango, send_receive_different_grids)
+{
+    int rank;
+
+    string config_dir = "./test_input-1_mappings-2_grids-4x4_to_8x8/";
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+   if (rank == 0) {
+        double send_array[4*4];
+        for (int i = 0; i < 4*4; i++) {
+            send_array[i] = 1;
+        }
+
+        tango_init(config_dir.c_str(), "ice", 0, 4, 0, 4, 0, 4, 0, 4);
+        tango_begin_transfer(0, "ocean");
+        tango_put("temp", send_array, 4 * 4);
+        tango_end_transfer();
+
+    } else {
+        double recv_array[8*8];
+
+        tango_init(config_dir.c_str(), "ocean", 0, 8, 0, 8, 0, 8, 0, 8);
+        tango_begin_transfer(0, "ice");
+        tango_get("temp", recv_array, 8 * 8);
+        tango_end_transfer();
+
+        /* Calculate sum of recv_array. */
+        double sum = 0;
+        for (int i = 0; i < 8*8; i++) {
+            sum += recv_array[i];
+        }
+
+        cout << "recv_array sum is " << sum << endl;
+    }
+
+    tango_finalize();
+}
 int main(int argc, char* argv[])
 {
     int result = 0;

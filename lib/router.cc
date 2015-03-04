@@ -252,16 +252,6 @@ void Router::build_routing_rules(string config_dir)
         }
         read_netcdf(remap_file, src_points, dest_points, weights);
 
-        /* Check consistency between domain info supplied by code and weights
-         * file. FIXME: the following may not be the case for some
-         * interpolation schemes. */
-        if (src_points.size() != local_tile->global_size()) {
-            cerr << "Error: weights domain size != coupler domain size." << endl;
-            cerr << "Weights domain size: " << src_points.size() << endl;
-            cerr << "Coupler domain size: " << local_tile->global_size() << endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
-
         /* For all points that the local tile is responsible for, figure out
          * which tiles it needs to send/recv to/from. */
         /* FIXME: some kind of check that all our local points are covered. */
@@ -310,15 +300,6 @@ void Router::build_routing_rules(string config_dir)
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
         read_netcdf(remap_file, src_points, dest_points, weights);
-
-        /* Check consistency between domain info supplied by code and weights
-         * file. */
-        if (src_points.size() != local_tile->global_size()) {
-            cerr << "Error: weights domain size != coupler domain size." << endl;
-            cerr << "Weights domain size: " << src_points.size() << endl;
-            cerr << "Coupler domain size: " << local_tile->global_size() << endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
