@@ -30,21 +30,35 @@ public:
     /* Global extent domain that this tile is a part of. */
     unsigned int gis, gie, gjs, gje;
 
-    /* Local points to send this tile. */
-    vector<point_t> send_points;
-    /* Corrosponding weights for the points above. */
-    vector<double> send_weights;
-    /* Local points to recv from this tile. */
-    vector<point_t> recv_points;
-    /* Keep the recv_weights around for now, although not needed because they
-     * are applied on the send side. */
-    vector<double> recv_weights;
-
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
     bool has_point(point_t p) const;
-    unsigned int local_size(void) const { return points.size(); }
-    unsigned int global_size(void) const { return (gie - gis) * (gje - gjs); }
+    unsigned int local_domain_size(void) const { return points.size(); }
+    unsigned int global_domain_size(void) const
+        { return (gie - gis) * (gje - gjs); }
+    bool domain_equal(unsigned int lis, unsigned int lie, unsigned int ljs,
+                      unsigned int lje, unsigned int gis, unsigned int gie,
+                      unsigned int gjs, unsigned int gje);
+    point_t global_to_local_domain(point_t global);
+    tile_id_t get_id(void) const { return id; }
+};
+
+/* This represents a mapping between the local tile (proc) to a remote tile in
+ * _either_ a send or receive direction (not both). The send and receive are
+ * kept separate because there may be different interpolation schemes used for
+ * each. */
+class Mapping {
+public:
+
+    Tile *remote_tile
+
+    /* Local points that must be sent/received to/from the remote tile. */
+    vector<point_t> local_points;
+
+    /* For each of the above there may be several remote points with an
+     * associated weight. */
+    unordered_map<point_t, list< pair<point_t, double> > remote_points;
+
     const vector<point_t>& get_send_points(void) const
         { return send_points; }
     const vector<point_t>& get_recv_points(void) const
@@ -53,11 +67,6 @@ public:
     const vector<double>& get_recv_weights(void) const { return recv_weights; }
     bool send_points_empty(void) const { return send_points.empty(); }
     bool recv_points_empty(void) const { return recv_points.empty(); }
-    bool domain_equal(unsigned int lis, unsigned int lie, unsigned int ljs,
-                      unsigned int lje, unsigned int gis, unsigned int gie,
-                      unsigned int gjs, unsigned int gje);
-    point_t global_to_local_domain(point_t global);
-    tile_id_t get_id(void) const { return id; }
 };
 
 class Router {
@@ -67,6 +76,9 @@ private:
     Tile *local_tile = nullptr;
 
     int num_ranks;
+
+    list<Mapping *> send_mapping;
+    list<Mapping *> recv_mapping;
 
     /* Map grid names to lists of tiles. */
     unordered_map<string, list<Tile *> > grid_tiles;

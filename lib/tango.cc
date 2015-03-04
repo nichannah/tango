@@ -168,6 +168,14 @@ void tango_end_transfer()
                 }
             }
 
+            cout << "Sending a total of " << points.size() << " points." << endl;
+            cout << "Sum or array being sent: ";
+            double sum = 0;
+            for (unsigned int i = 0; i < points.size(); i++) {
+                sum += send_buf[i];
+            }
+            cout << sum << endl;
+
             /* Now do the actual send to the remote tile. */
             /* FIXME: tag? */
             MPI_Request *request = new MPI_Request;
@@ -206,6 +214,15 @@ void tango_end_transfer()
                     offset++;
                 }
             }
+
+            cout << "Receiving a total of " << points.size() << " points." << endl;
+            cout << "Sum or array being received: ";
+            double sum = 0;
+            for (unsigned int i = 0; i < points.size(); i++) {
+                sum += recv_buf[i];
+            }
+            cout << sum << endl;
+
             delete[] recv_buf;
         }
     }

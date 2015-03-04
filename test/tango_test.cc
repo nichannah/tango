@@ -52,35 +52,44 @@ TEST(Tango, send_receive)
 TEST(Tango, send_receive_different_grids)
 {
     int rank;
+    /*
+    int src_len = 50, dest_len = 100;
+    */
+    int src_len = 4, dest_len = 8;
 
     string config_dir = "./test_input-1_mappings-2_grids-4x4_to_8x8/";
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+
    if (rank == 0) {
-        double send_array[4*4];
-        for (int i = 0; i < 4*4; i++) {
+        double send_array[src_len * src_len];
+        for (int i = 0; i < src_len * src_len; i++) {
             send_array[i] = 1;
         }
 
-        tango_init(config_dir.c_str(), "ice", 0, 4, 0, 4, 0, 4, 0, 4);
+        tango_init(config_dir.c_str(), "ice", 0, src_len, 0, src_len, 0, src_len, 0, src_len);
         tango_begin_transfer(0, "ocean");
-        tango_put("temp", send_array, 4 * 4);
+        tango_put("temp", send_array, src_len * src_len);
         tango_end_transfer();
 
     } else {
-        double recv_array[8*8];
+        double recv_array[dest_len * dest_len];
 
-        tango_init(config_dir.c_str(), "ocean", 0, 8, 0, 8, 0, 8, 0, 8);
+        tango_init(config_dir.c_str(), "ocean", 0, dest_len, 0, dest_len, 0, dest_len, 0, dest_len);
         tango_begin_transfer(0, "ice");
-        tango_get("temp", recv_array, 8 * 8);
+        tango_get("temp", recv_array, dest_len * dest_len);
         tango_end_transfer();
 
         /* Calculate sum of recv_array. */
         double sum = 0;
-        for (int i = 0; i < 8*8; i++) {
+        for (int i = 0; i < dest_len * dest_len; i++) {
             sum += recv_array[i];
+            /*
+            cout << recv_array[i] << " ";
+            */
         }
+        cout << endl;
 
         cout << "recv_array sum is " << sum << endl;
     }
