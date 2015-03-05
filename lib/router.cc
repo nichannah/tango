@@ -134,8 +134,11 @@ void Router::exchange_descriptions(void)
     description[i++] = local_tile->gjs;
     description[i++] = local_tile->gje;
 
-    /* MPI_UNSIGNED has size 8 so we use MPI_INT. */
-    /* Distribute all_descriptions. */
+    /* Distribute all_descriptions. There is a big design decision here. The
+     * domain information of each PE/tile is distributed to all others, it is
+     * then the responsibility of each PE to calculate the mappings that it is
+     * involved in. This increases computation overall but saves a lot on
+     * communication. */
     all_descs = new int[DESCRIPTION_SIZE * num_ranks];
     MPI_Gather(description, DESCRIPTION_SIZE, MPI_INT, all_descs,
                DESCRIPTION_SIZE, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -159,17 +162,7 @@ void Router::exchange_descriptions(void)
             continue;
         }
 
-        /* Check that there are no duplicate tiles. */
-        if ((grid_name == local_grid_name) &&
-            local_tile->domain_equal(all_descs[j+1], all_descs[j+2],
-                                     all_descs[j+3], all_descs[j+4],
-                                     all_descs[j+5], all_descs[j+6],
-                                     all_descs[j+7], all_descs[j+8])) {
-            cerr << "Error: multiple tiles with the same domain on grid: "
-                 << grid_name << endl;
-        }
-
-        /* Note that below no tiles kept for grids that we don't
+        /* Note that below no tiles are kept for grids that we don't
          * communicate with, including ourselves. */
 
         /* Make a new tile and insert into list of tiles for this grid. This
@@ -181,6 +174,23 @@ void Router::exchange_descriptions(void)
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
             grid_tiles[grid_name].push_back(t);
+
+            /* Now create the mappings from the local tile to this remote tile.
+             * These will be populated later. Note that there can be both send
+             * and receive mappings for a single tile. */
+            if (is_send_grid(grid_name)) {
+                Mapping *m = new Mapping(t);
+                /* FIXME: check that the mapping being added is not a
+                 * duplicate. */
+                send_mapping.push_back(m);
+            }
+
+            if (is_recv_grid(grid_name)) {
+                Mapping *m = new Mapping(t);
+                /* FIXME: check that the mapping being added is not a
+                 * duplicate. */
+                recv_mapping.push_back(m);
+            }
         }
     }
 
@@ -223,11 +233,52 @@ void Router::read_netcdf(string filename, vector<unsigned int>& src_points,
 }
 
 
-/* Will need to build different rules for the send_local case. */
+void Router::add_to_send_mapping(string grid, unsigned int src_point,
+                                 unsigned int dest_point, double weight) 
+{
+    for (auto *tile : grid_tiles[grid]) {
+        if (tile->has_point(dest_points[i])) {
+            /* So this src_point (on the local tile) needs to
+             * be sent to dest_point on the remote tile. We
+             * keep track of this by adding it to a list of
+             * send_points. */
+
+            /* All point references use a global point id,
+             * however when we actually go to send a field it
+             * is going to use an index which starts at 0.
+             * Therefore it's necessary to convert into the
+             * local coordinate system. */
+            point_t p = local_tile->global_to_local_domain(src_points[i]);
+            tile->send_points.push_back(p);
+            tile->send_weights.push_back(weights[i]);
+            break;
+        }
+    }
+}
+
+void Router::add_to_recv_mapping(string grid, unsigned int src_point,
+                                 unsigned int dest_point, double weight) 
+{
+/* Search through the remote tiles and find the one that is
+     * responsible for the src_point that corresponds to this
+     * dest_point. */
+    for (auto *tile : grid_tiles[grid]) {
+        if (tile->has_point(src_points[i])) {
+            /* Add to the list of points and weights. Once
+             * again the recv_points/send_points is the index
+             * that the local tile receives or sends on. */
+            point_t p = local_tile->global_to_local_domain(dest_points[i]);
+            tile->recv_points.push_back(p);
+            tile->recv_weights.push_back(weights[i]);
+            break;
+        }
+    }
+}
+
 void Router::build_routing_rules(string config_dir)
 {
     /* Now open the grid remapping files created with ESMF. Use this to
-     * populate the routing maps. */
+     * populate the mapping graph. */
 
     /* FIXME: performance may be a problem here. This loop is may take in
      * the order of seconds for a 1000x1000 grid with 1000 procs, it may
@@ -239,7 +290,7 @@ void Router::build_routing_rules(string config_dir)
      *    like the dest points are presented in consecutive order. */
 
     /* Iterate over all the grids that we send to. */
-    for (auto& grid : dest_grids) {
+    for (auto& grid : send_grids) {
         vector<unsigned int> src_points;
         vector<unsigned int> dest_points;
         vector<double> weights;
@@ -252,43 +303,29 @@ void Router::build_routing_rules(string config_dir)
         }
         read_netcdf(remap_file, src_points, dest_points, weights);
 
-        /* For all points that the local tile is responsible for, figure out
-         * which tiles it needs to send/recv to/from. */
-        /* FIXME: some kind of check that all our local points are covered. */
+        /* For all points that the local tile is responsible for set up a
+         * mapping to a tile on the grid that we are sending to. */
         for (const auto point : local_tile->points) {
             for (unsigned int i = 0; i < src_points.size(); i++) {
-                if ((src_points[i] == point) &&
-                    (weights[i] > WEIGHT_THRESHOLD)) {
-                    /* The src_point exists on the local tile. */
 
-                    /* Search through the remote tiles and find the one that is
-                     * responsible for the dest_point that corresponds to this
-                     * src_point. */
-                    for (auto *tile : grid_tiles[grid]) {
-                        if (tile->has_point(dest_points[i])) {
-                            /* So this src_point (on the local tile) needs to
-                             * be sent to dest_point on the remote tile. We
-                             * keep track of this by adding it to a list of
-                             * send_points. */
+                unsigned int src_point = src_points[i];
+                unsigned int dest_point = dest_points[i];
+                double weight = weights[i]
 
-                            /* All point references use a global point id,
-                             * however when we actually go to send a field it
-                             * is going to use an index which starts at 0.
-                             * Therefore it's necessary to convert into the
-                             * local coordinate system. */
-                            point_t p = local_tile->global_to_local_domain(src_points[i]);
-                            tile->send_points.push_back(p);
-                            tile->send_weights.push_back(weights[i]);
-                            break;
-                        }
-                    }
-                }
+                if ((src_point == point) && (weight > WEIGHT_THRESHOLD)) {
+                    /* So this source points exists on the local tile, also the
+                     * weight is large enough to care about. */
+
+                    /* Set up a mapping between this source point and the
+                     * destination. */
+                    add_to_send_mapping(grid, src_point, dest_point, weight);
+               }
             }
         }
     }
 
     /* Iterate over all the grids that we receive from. */
-    for (auto& grid : src_grids) {
+    for (auto& grid : recv_grids) {
         vector<unsigned int> src_points;
         vector<unsigned int> dest_points;
         vector<double> weights;
@@ -308,20 +345,7 @@ void Router::build_routing_rules(string config_dir)
                 if ((dest_points[i] == point) &&
                     (weights[i] > WEIGHT_THRESHOLD)) {
 
-                    /* Search through the remote tiles and find the one that is
-                     * responsible for the src_point that corresponds to this
-                     * dest_point. */
-                    for (auto *tile : grid_tiles[grid]) {
-                        if (tile->has_point(src_points[i])) {
-                            /* Add to the list of points and weights. Once
-                             * again the recv_points/send_points is the index
-                             * that the local tile receives or sends on. */
-                            point_t p = local_tile->global_to_local_domain(dest_points[i]);
-                            tile->recv_points.push_back(p);
-                            tile->recv_weights.push_back(weights[i]);
-                            break;
-                        }
-                    }
+                    add_to_recv_mapping(grid, src_point, dest_point, weight);
                 }
             }
         }
@@ -330,6 +354,8 @@ void Router::build_routing_rules(string config_dir)
     /* Now clean up all the unused Tiles that were inserted in
      * exchange_descriptions(). */
     remove_unreferenced_tiles();
+
+    /* FIXME: Check that all our local points are covered. */
 
     /* Now we have a routing data structure that tells us which remote tiles
      * the local tile needs to communicate with. Also which local points need
@@ -356,13 +382,28 @@ void Router::remove_unreferenced_tiles(void)
 
 bool Router::is_peer_grid(string grid)
 {
-    if ((dest_grids.find(grid) != dest_grids.end()) ||
-        (src_grids.find(grid) != src_grids.end())) {
+    if (is_send_grid(grid) or is_recv_grid(grid)) {
         return true;
     }
-
     return false;
 }
+
+bool Router::is_send_grid(string grid)
+{
+    if (send_grids.find(grid) != send_grids.end()) {
+        return true;
+    }
+    return false;
+}
+
+bool Router::is_recv_grid(string grid)
+{
+    if (recv_grids.find(grid) != recv_grids.end()) {
+        return true;
+    }
+    return false;
+}
+
 
 list<Tile *>& Router::get_grid_tiles(string grid)
 {

@@ -48,25 +48,24 @@ public:
  * kept separate because there may be different interpolation schemes used for
  * each. */
 class Mapping {
-public:
+private:
 
     Tile *remote_tile
 
-    /* Local points that must be sent/received to/from the remote tile. */
-    vector<point_t> local_points;
-
-    /* For each of the above there may be several remote points with an
-     * associated weight. */
-    unordered_map<point_t, list< pair<point_t, double> > remote_points;
-
-    const vector<point_t>& get_send_points(void) const
-        { return send_points; }
-    const vector<point_t>& get_recv_points(void) const
-        { return recv_points; }
-    const vector<double>& get_send_weights(void) const { return send_weights; }
-    const vector<double>& get_recv_weights(void) const { return recv_weights; }
-    bool send_points_empty(void) const { return send_points.empty(); }
-    bool recv_points_empty(void) const { return recv_points.empty(); }
+    /* These two maps make up a symetrical graph structure. Each one maps
+     * individial points to a list of peer points with an associated weight.
+     * The peer points from one map are the keys to the other.
+     *
+     * It is not necessary to have both maps since they represent the same
+     * relationship between points, however keeping two is convenient.
+     *
+     * The local_side_map uses local points has keys, the other uses remote
+     * points as keys.
+     */
+    map<point_t, list< pair<point_t, weight_t> > local_side_map;
+    map<point_t, list< pair<point_t, weight_t> > remote_side_map;
+public:
+    Mapping(Tile *remote_tile) : remote_tile(remote_tile) {}
 };
 
 class Router {
@@ -77,20 +76,24 @@ private:
 
     int num_ranks;
 
-    list<Mapping *> send_mapping;
-    list<Mapping *> recv_mapping;
+    /* Mappings that the local_tile participates in. */
+    unordered_map<string, list<Mapping *> > send_mapping;
+    unordered_map<string, list<Mapping *> > recv_mapping;
 
-    /* Map grid names to lists of tiles. */
+    /* Map grid names to lists of tiles. FIXME: is this needed? */
     unordered_map<string, list<Tile *> > grid_tiles;
-    /* Source (to receive from) and destination (to send to) grids. */
-    unordered_set<string> src_grids;
-    unordered_set<string> dest_grids;
+
+    /* Grids that we send to and recv from. */
+    unordered_set<string> send_grids;
+    unordered_set<string> recv_grids;
 
     void remove_unreferenced_tiles(void);
-    void read_netcdf(string filename, vector<unsigned int>& src_points,
-                     vector<unsigned int>& dest_points,
+    void read_netcdf(string filename, vector<unsigned int>& send_points,
+                     vector<unsigned int>& recv_points,
                      vector<double>& weights);
     bool is_peer_grid(string grid);
+    bool is_send_grid(string grid);
+    bool is_recv_grid(string grid);
 
 public:
     Router(string grid_name, unordered_set<string>& dest_grids,
@@ -106,6 +109,11 @@ public:
         { assert(local_tile != nullptr); return local_tile->id; }
     list<Tile *>& get_grid_tiles(string grid);
     string get_local_grid_name(void) { return local_grid_name; }
+
+    void add_to_send_mapping(string grid, unsigned int src_point,
+                             unsigned int dest_point, double weight);
+    void add_to_recv_mapping(string grid, unsigned int src_point,
+                             unsigned int dest_point, double weight);
 };
 
 /* A per-process coupling manager. */
