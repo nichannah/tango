@@ -11,9 +11,10 @@ using namespace std;
 typedef unsigned int point_t;
 typedef int tile_id_t;
 
+
 /* A per-rank tile represents a subdomain of a particular grid. */
 class Tile {
-public:
+private:
 
     /* Id of the tile is the MPI_COMM_WORLD rank on which the tile exists. */
     tile_id_t id;
@@ -30,9 +31,9 @@ public:
     /* Global extent domain that this tile is a part of. */
     unsigned int gis, gie, gjs, gje;
 
+public:
     Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
-    bool has_point(point_t p) const;
     unsigned int local_domain_size(void) const { return points.size(); }
     unsigned int global_domain_size(void) const
         { return (gie - gis) * (gje - gjs); }
@@ -41,6 +42,7 @@ public:
                       unsigned int gjs, unsigned int gje);
     point_t global_to_local_domain(point_t global);
     tile_id_t get_id(void) const { return id; }
+    bool has_point(point_t p) const
 };
 
 /* This represents a mapping between the local tile (proc) to a remote tile in
@@ -52,20 +54,28 @@ private:
 
     Tile *remote_tile
 
-    /* These two maps make up a symetrical graph structure. Each one maps
-     * individial points to a list of peer points with an associated weight.
-     * The peer points from one map are the keys to the other.
-     *
-     * It is not necessary to have both maps since they represent the same
-     * relationship between points, however keeping two is convenient.
-     *
-     * The local_side_map uses local points has keys, the other uses remote
-     * points as keys.
-     */
-    map<point_t, list< pair<point_t, weight_t> > local_side_map;
-    map<point_t, list< pair<point_t, weight_t> > remote_side_map;
+    /* Sorted set of 'side A' points in the mapping. They are the keys to the map
+     * below. It's just a convenience. */
+    set<point_t> side_A_points;
+
+    /* This map represents a graph structure. It maps individial 'side A'
+     * points to a list of peer points ('side B' points) with an associated
+     * weight. */
+    unordered_map<point_t, set< pair<point_t, weight_t> > side_A_to_B_map;
+
 public:
     Mapping(Tile *remote_tile) : remote_tile(remote_tile) {}
+    ~Mapping() { delete remote_tile }
+    void add_link(source, target, weight)
+        { side_A_to_B_map[source].push_back(pair(target, weight)); }
+    Tile *get_remote_tile(void) { return remote_tile; }
+
+    set<point_t>& get_side_A_points(void) { return side_A_points; }
+
+    list< pair<point_t, weight_t> >& get_side_B(point_t p)
+        { return side_A_to_B_map[p]; }
+
+    tile_id_t get_remote_tile_id(void) { return remote_tile->id; }
 };
 
 class Router {
@@ -77,8 +87,8 @@ private:
     int num_ranks;
 
     /* Mappings that the local_tile participates in. */
-    unordered_map<string, list<Mapping *> > send_mapping;
-    unordered_map<string, list<Mapping *> > recv_mapping;
+    unordered_map<string, list<Mapping *> > send_mappings;
+    unordered_map<string, list<Mapping *> > recv_mappings;
 
     /* Map grid names to lists of tiles. FIXME: is this needed? */
     unordered_map<string, list<Tile *> > grid_tiles;
@@ -95,6 +105,11 @@ private:
     bool is_send_grid(string grid);
     bool is_recv_grid(string grid);
 
+    void add_to_mapping(string grid, unsigned int src_point,
+                        unsigned int dest_point, double weight);
+
+    void add_to_recv_mapping(string grid, unsigned int src_point,
+                             unsigned int dest_point, double weight);
 public:
     Router(string grid_name, unordered_set<string>& dest_grids,
            unordered_set<string>& src_grids,
@@ -107,13 +122,10 @@ public:
     void build_rules(void);
     int get_tile_id(void) const
         { assert(local_tile != nullptr); return local_tile->id; }
-    list<Tile *>& get_grid_tiles(string grid);
+    list<Mappings *>& get_send_mappings(string grid);
+    list<Mappings *>& get_recv_mappings(string grid);
     string get_local_grid_name(void) { return local_grid_name; }
 
-    void add_to_send_mapping(string grid, unsigned int src_point,
-                             unsigned int dest_point, double weight);
-    void add_to_recv_mapping(string grid, unsigned int src_point,
-                             unsigned int dest_point, double weight);
 };
 
 /* A per-process coupling manager. */

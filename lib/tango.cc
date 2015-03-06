@@ -102,6 +102,10 @@ void tango_put(const char *field_name, double array[], int size)
              << " grid" << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+    /* Check that the field size is correct. */
+    if (cm->expected_field_size() == size) {
+        assert(false);
+    }
 
     transfer->total_send_size += size;
     transfer->fields.push_back(Field(array, size));
@@ -118,6 +122,9 @@ void tango_get(const char *field_name, double array[], int size)
              << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+    if (cm->expected_field_size() == size) {
+        assert(false);
+    }
 
     transfer->total_recv_size += size;
     transfer->fields.push_back(Field(array, size));
@@ -133,93 +140,119 @@ void tango_end_transfer()
     assert(transfer->total_send_size != 0 || transfer->total_recv_size != 0);
 
     Router *router = cm->get_router();
+    string peer_grid = transfer->get_peer_grid();
 
     /* We are the sender */
     if (transfer->total_send_size != 0) {
 
-        /* Iterate over the tiles we communicate with. */
-        for (const auto *tile : router->get_grid_tiles(transfer->get_peer_grid())) {
+        /* Iterate over the mappings to other tiles that we have. */
+        for (const auto *mapping : router->get_send_mappings(peer_grid)) {
 
-            if (tile->send_points_empty()) {
-                /* There are no local points which need to be sent to this
-                 * tile.
-                 *
-                 * Skipping through these is unlikely to be a performance
-                 * problem becaus the list of tiles contains only those which
-                 * need to be sent or received. Usually it will be both. */
-                continue;
-            }
+            /* Presently we only support applying interpolation weights on the
+             * send side. At some point it may make sense to support receive
+             * side weighting also. The benefit of doing this depends on things
+             * such as the relative grid sizes and cost of moving data around.
+             * Ideally the grid sizes are roughtly matched in which case it
+             * makes no difference. */
 
-            /* Which local points to send to each destination tile. */
-            const auto& points = tile->get_send_points();
-            const auto& weights = tile->get_send_weights();
+            /* What we do here is:
+             * 1) name the remote points as the 'side A' points. The 'A side'
+             * can expect all weights to have already been applied. Local
+             * points are side B.
+             *
+             * 2) Go through the remote points and for each one get the
+             * associated local points and weights.
+             *
+             * 3) The local points are then used as indices into the buffer
+             * being send, the weights are applied to these.
+             *
+             * 4) Send to remote tile associated with this mapping.
+             */
 
-            /* Marshall data into buffer for current send. All variables are
-             * sent at once. */
-            int count = points.size() * transfer->fields.size();
+            auto &remote_points = mapping->get_side_A_points()
+
+            int count = remote_points->size() * transfer->fields.size();
             double *send_buf = new double[count];
 
             offset = 0;
             for (const auto& field : transfer->fields) {
-                for (unsigned int i = 0; i < points.size(); i++) {
-                    /* Note that points is in the local coordinate system (not global) */
-                    send_buf[offset] = field.buffer[points[i]] * weights[i];
-                    offset++;
+                for (auto& rp : remote_points) {
+
+                    send_buf[offset] = 0;
+
+                    /* Get local points that correspond to this remote point
+                     * apply the weights. */
+                    for (auto& lp_and_weight : mapping->get_side_B(rp)) {
+                        point_t local_point = lp_and_w.first;
+                        double weight = lp_and_w.second;
+
+                        send_buf[offset] += field.buffer[local_point] * weight;
+                    }
+                    offset++
                 }
             }
 
-            cout << "Sending a total of " << points.size() << " points." << endl;
+            cout << "Sending a total of " << remote_points.size() << " points." << endl;
             cout << "Sum or array being sent: ";
             double sum = 0;
-            for (unsigned int i = 0; i < points.size(); i++) {
+            for (unsigned int i = 0; i < remote_points.size(); i++) {
                 sum += send_buf[i];
             }
             cout << sum << endl;
 
-            /* Now do the actual send to the remote tile. */
+            /* Now do the actual send to the remote tile associated with this
+             * mapping. */
             /* FIXME: tag? */
             MPI_Request *request = new MPI_Request;
-            MPI_Isend(send_buf, count, MPI_DOUBLE, tile->get_id(), 0x7A960,
-                      MPI_COMM_WORLD, request);
+            MPI_Isend(send_buf, count, MPI_DOUBLE, mapping->get_remote_tile_id(),
+                      0x7A960, MPI_COMM_WORLD, request);
 
             /* Keep these, they need be freed later. */
             transfer->pending_sends.push_back(PendingSend(request, send_buf));
         }
 
     } else {
-        /* We are the receiver. This is the reverse of above but we do a
-         * blocking receive. */
+        /* We are the receiver. We do a blocking receive. */
 
-        for (const auto *tile : router->get_grid_tiles(transfer->get_peer_grid())) {
+        for (const auto *mapping : mapping->get_recv_mappings(peer_grid)) {
 
-            if (tile->recv_points_empty()) {
-                continue;
-            }
+            /* What we do here:
+             *
+             * 1) name the local points as the 'side A' points.
+             *
+             * 2) receive data from remote tile associated with this mapping.
+             *
+             * 3) the data comes in as a sequential array (of course) but each
+             * array element can refer to any local point, so the data has to
+             * be 'unboxed', i.e. loaded into the correct index of the receive
+             * field. 
+             *
+             * 4) Since many mappings can contribute to a single point we use
+             * += to accumulate all incoming data for that points. 
+             */
 
-            const auto& points = tile->get_recv_points();
+            const auto& local_points = mapping->get_side_A_points();
 
-            int count = points.size() * transfer->fields.size();
+            int count = local_points.size() * transfer->fields.size();
             double *recv_buf = new double[count];
-            MPI_Status status;
 
-            MPI_Recv(recv_buf, count, MPI_DOUBLE, tile->get_id(), 0x7A960,
-                     MPI_COMM_WORLD, &status);
+            MPI_Status status;
+            MPI_Recv(recv_buf, count, MPI_DOUBLE, mapping->get_remote_tile_id(),
+                     0x7A960, MPI_COMM_WORLD, &status);
 
             offset = 0;
             for (const auto& field : transfer->fields) {
-                for (unsigned int i = 0; i < points.size(); i++) {
-                    /* Note that points is in the local coordinate system (not global)
-                     * No need to apply weights here, that was done on the send side. */
-                    field.buffer[points[i]] = recv_buf[offset];
+                for (auto& lp : local_points) {
+                    field.buffer[lp] += recv_buf[offset];
                     offset++;
                 }
             }
 
-            cout << "Receiving a total of " << points.size() << " points." << endl;
+            cout << "Receiving a total of " << local_points.size() << " points." << endl;
             cout << "Sum or array being received: ";
             double sum = 0;
-            for (unsigned int i = 0; i < points.size(); i++) {
-                sum += recv_buf[i];
+            for (unsigned int i = 0; i < field.size(); i++) {
+                sum += field.buffer[i];
             }
             cout << sum << endl;
 
