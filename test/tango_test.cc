@@ -61,14 +61,14 @@ TEST(Tango, send_receive_different_grids)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-
    if (rank == 0) {
         double send_array[src_len * src_len];
         for (int i = 0; i < src_len * src_len; i++) {
-            send_array[i] = 1;
+            send_array[i] = i;
         }
 
-        tango_init(config_dir.c_str(), "ice", 0, src_len, 0, src_len, 0, src_len, 0, src_len);
+        tango_init(config_dir.c_str(), "ice",
+                   0, src_len, 0, src_len, 0, src_len, 0, src_len);
         tango_begin_transfer(0, "ocean");
         tango_put("temp", send_array, src_len * src_len);
         tango_end_transfer();
@@ -76,26 +76,30 @@ TEST(Tango, send_receive_different_grids)
     } else {
         double recv_array[dest_len * dest_len];
 
-        tango_init(config_dir.c_str(), "ocean", 0, dest_len, 0, dest_len, 0, dest_len, 0, dest_len);
+        tango_init(config_dir.c_str(), "ocean",
+                   0, dest_len, 0, dest_len, 0, dest_len, 0, dest_len);
         tango_begin_transfer(0, "ice");
         tango_get("temp", recv_array, dest_len * dest_len);
         tango_end_transfer();
 
+        double expected_sum = 0;
+        for (int i = 0; i < src_len * src_len; i++) {
+            expected_sum += i;
+        }
+
         /* Calculate sum of recv_array. */
+        double area_ratio = double(src_len * src_len) /
+                            double(dest_len * dest_len);
         double sum = 0;
         for (int i = 0; i < dest_len * dest_len; i++) {
-            sum += recv_array[i];
-            /*
-            cout << recv_array[i] << " ";
-            */
+            sum += recv_array[i] * area_ratio;
         }
-        cout << endl;
-
-        cout << "recv_array sum is " << sum << endl;
+        EXPECT_NEAR(expected_sum, sum, 1e-6);
     }
 
     tango_finalize();
 }
+
 int main(int argc, char* argv[])
 {
     int result = 0;

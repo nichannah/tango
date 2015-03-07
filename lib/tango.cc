@@ -1,53 +1,20 @@
-#include <list>
-#include <assert.h>
+
 #include <mpi.h>
+#include <assert.h>
 
 #include "tango.h"
+#include "tango_internal.h"
 #include "router.h"
 
 using namespace std;
 
-class Field {
-public:
-    double *buffer;
-    unsigned int size;
-    Field(double *buf, unsigned int buf_size);
-};
-
-Field::Field(double *buf, unsigned int buf_size)
-    : buffer(buf), size(buf_size) {}
-
-class PendingSend {
-public:
-    MPI_Request *request;
-    double *buffer;
-    PendingSend(MPI_Request *request, double *buffer);
-};
-
-PendingSend::PendingSend(MPI_Request *request, double *buffer)
-    : request(request), buffer(buffer) {}
-
-class Transfer {
-private:
-    int curr_time;
-    /* Name of grid that this transfer is sending/recieving to/from. */
-    string peer_grid;
-public:
-    unsigned int total_send_size;
-    unsigned int total_recv_size;
-    string get_peer_grid(void) const { return peer_grid; }
-    list<Field> fields;
-    list<PendingSend> pending_sends;
-    Transfer(int time, string peer);
-};
-
-Transfer::Transfer(int time, string peer)
-    : curr_time(time), peer_grid(peer), total_send_size(0), total_recv_size(0) {}
-
 static Transfer *transfer;
 static CouplingManager *cm;
 
+/* FIXME: Need to force user to use API according to the config file. */
 /* FIXME: Check return codes of MPI calls. */
+/* FIXME: In order to do the above (and for other reasons) it is probably a
+ * good idea that the config file be parsed here. Or let's have a config class. */
 
 /* Pass in the grid name, the extents of the global domain and the extents of
  * the local domain that this proc is responsible for. */
@@ -103,9 +70,11 @@ void tango_put(const char *field_name, double array[], int size)
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
     /* Check that the field size is correct. */
+    /*
     if (cm->expected_field_size() == size) {
         assert(false);
     }
+    */
 
     transfer->total_send_size += size;
     transfer->fields.push_back(Field(array, size));
@@ -122,9 +91,11 @@ void tango_get(const char *field_name, double array[], int size)
              << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+    /*
     if (cm->expected_field_size() == size) {
         assert(false);
     }
+    */
 
     transfer->total_recv_size += size;
     transfer->fields.push_back(Field(array, size));
@@ -169,9 +140,9 @@ void tango_end_transfer()
              * 4) Send to remote tile associated with this mapping.
              */
 
-            auto &remote_points = mapping->get_side_A_points()
+            const auto &remote_points = mapping->get_side_A_points();
 
-            int count = remote_points->size() * transfer->fields.size();
+            int count = remote_points.size() * transfer->fields.size();
             double *send_buf = new double[count];
 
             offset = 0;
@@ -181,24 +152,16 @@ void tango_end_transfer()
                     send_buf[offset] = 0;
 
                     /* Get local points that correspond to this remote point
-                     * apply the weights. */
-                    for (auto& lp_and_weight : mapping->get_side_B(rp)) {
+                     * and apply weights. */
+                    for (const auto& lp_and_w : mapping->get_side_B(rp)) {
                         point_t local_point = lp_and_w.first;
                         double weight = lp_and_w.second;
 
                         send_buf[offset] += field.buffer[local_point] * weight;
                     }
-                    offset++
+                    offset++;
                 }
             }
-
-            cout << "Sending a total of " << remote_points.size() << " points." << endl;
-            cout << "Sum or array being sent: ";
-            double sum = 0;
-            for (unsigned int i = 0; i < remote_points.size(); i++) {
-                sum += send_buf[i];
-            }
-            cout << sum << endl;
 
             /* Now do the actual send to the remote tile associated with this
              * mapping. */
@@ -214,7 +177,7 @@ void tango_end_transfer()
     } else {
         /* We are the receiver. We do a blocking receive. */
 
-        for (const auto *mapping : mapping->get_recv_mappings(peer_grid)) {
+        for (const auto *mapping : router->get_recv_mappings(peer_grid)) {
 
             /* What we do here:
              *
@@ -247,14 +210,6 @@ void tango_end_transfer()
                     offset++;
                 }
             }
-
-            cout << "Receiving a total of " << local_points.size() << " points." << endl;
-            cout << "Sum or array being received: ";
-            double sum = 0;
-            for (unsigned int i = 0; i < field.size(); i++) {
-                sum += field.buffer[i];
-            }
-            cout << sum << endl;
 
             delete[] recv_buf;
         }
