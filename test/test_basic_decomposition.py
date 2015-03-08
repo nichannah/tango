@@ -42,7 +42,8 @@ class TestBasicDecomposition(unittest.TestCase):
         Most basic test to call init() and finalize().
         """
 
-        config = os.path.join(self.test_dir, 'test_input-1_mappings-2_grids')
+        config = os.path.join(self.test_dir,
+                              'test_input-2_mappings-2_grids-4x4_to_4x4')
         if self.rank == 0:
             tango = coupler.Tango(config, 'ocean', 0, 4, 0, 4, 0, 4, 0, 4)
         else:
@@ -52,12 +53,13 @@ class TestBasicDecomposition(unittest.TestCase):
 
     def test_one_way_send_receive(self):
         """
-        Send a single array. 
+        Send a single array.
         """
 
         grid_name = 'ocean'
 
-        config = os.path.join(self.test_dir, 'test_input-1_mappings-2_grids')
+        config = os.path.join(self.test_dir,
+                              'test_input-1_mappings-2_grids-4x4_to_4x4')
         if self.rank == 0:
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)
             tango.begin_transfer(0, 'ice')
@@ -82,7 +84,8 @@ class TestBasicDecomposition(unittest.TestCase):
         """
 
         grid_name = 'ocean'
-        config = os.path.join(self.test_dir, 'test_input-1_mappings-2_grids')
+        config = os.path.join(self.test_dir,
+                              'test_input-1_mappings-2_grids-4x4_to_4x4')
         if self.rank == 0:
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)
             tango.begin_transfer(0, 'ice')
@@ -111,7 +114,8 @@ class TestBasicDecomposition(unittest.TestCase):
         """
 
         grid_name = 'ocean'
-        config = os.path.join(self.test_dir, 'test_input-2_mappings-2_grids')
+        config = os.path.join(self.test_dir,
+                              'test_input-2_mappings-2_grids-4x4_to_4x4')
         if self.rank == 0:
             recv_temp = np.zeros(len(send_temp))
 
@@ -133,13 +137,14 @@ class TestBasicDecomposition(unittest.TestCase):
 
             grid_name = 'ice'
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)
-            tango.begin_transfer(0, 'ocean')
-            tango.put('temp', send_temp)
-            tango.end_transfer()
 
             tango.begin_transfer(0, 'ocean')
             tango.get('sst', recv_sst)
             tango.get('sss', recv_sss)
+            tango.end_transfer()
+
+            tango.begin_transfer(0, 'ocean')
+            tango.put('temp', send_temp)
             tango.end_transfer()
 
             assert(np.array_equal(send_sst, recv_sst))

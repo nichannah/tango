@@ -204,6 +204,7 @@ void Router::exchange_descriptions(void)
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
+            /* FIXME: these never get deleted! */
 
             /* Now create the mappings from the local tile to this remote tile.
              * These will be populated later. Note that there can be both send
@@ -413,6 +414,7 @@ void Router::build_routing_rules(string config_dir)
  * unused mappings. */
 void Router::remove_unused_mappings(void)
 {
+    /* FIXME: this code is broken! It does not delete the tile. */
     auto its = send_mappings.begin();
     while (its != send_mappings.end()) {
 

@@ -70,7 +70,6 @@ private:
 
 public:
     Mapping(Tile *remote_tile) : remote_tile(remote_tile) {}
-    ~Mapping() { delete remote_tile; }
     void add_link(point_t side_A_point, point_t side_B_point, weight_t weight)
         {
             side_A_points.insert(side_A_point);
