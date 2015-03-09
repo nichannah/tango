@@ -74,14 +74,17 @@ void Tile::pack(int *box, size_t size)
 Router::Router(const Config& config,
                unsigned int lis, unsigned int lie, unsigned int ljs,
                unsigned int lje, unsigned int gis, unsigned int gie,
-               unsigned int gjs, unsigned int gje) : config(config)
+               unsigned int gjs, unsigned int gje)
+    : config(config)
 {
+    
     tile_id_t tile_id;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &tile_id);
     MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &tile_id);
 
-    local_tile = new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
+    unique_ptr<Tile> tmp(new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje));
+    local_tile = move(tmp);
 
     exchange_descriptions();
     build_routing_rules();
@@ -89,9 +92,7 @@ Router::Router(const Config& config,
 
 Router::~Router()
 {
-    /* FIXME: use smart pointers. */
-    delete local_tile;
-
+    /*
     for (auto& kv : send_mappings) {
         while (!kv.second.empty()) {
             delete kv.second.front();
@@ -105,6 +106,7 @@ Router::~Router()
             kv.second.pop_front();
         }
     }
+    */
 }
 
 void Router::create_send_mapping(string grid_name, Tile *t)
@@ -189,7 +191,6 @@ void Router::exchange_descriptions(void)
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
                                all_descs[j+6], all_descs[j+7], all_descs[j+8]);
-            /* FIXME: these never get deleted! */
 
             /* Now create the mappings from the local tile to this remote tile.
              * These will be populated later. Note that there can be both send
@@ -355,27 +356,25 @@ void Router::build_routing_rules(void)
  * unused mappings. */
 void Router::remove_unused_mappings(void)
 {
-    /* FIXME: this code is broken! It does not delete the tile. */
-    auto its = send_mappings.begin();
-    while (its != send_mappings.end()) {
+    auto clean_func = [](list<Mapping *>& mappings) {
+        auto it = mappings.begin();
+        while (it != mappings.end()) {
 
-        if (its->second.empty()) {
-            its = send_mappings.erase(its);
+            if ((*it)->not_in_use()) {
+                it = mappings.erase(it);
+            }
+            else {
+                it++;
+            }
         }
-        else {
-            its++;
-        }
+        assert(!mappings.empty());
+    };
+
+    for (auto kv : send_mappings) {
+        clean_func(kv.second);
     }
 
-    /* FIXME: remove duplicate code. */
-    auto itr = recv_mappings.begin();
-    while (itr != recv_mappings.end()) {
-
-        if (itr->second.empty()) {
-            itr = recv_mappings.erase(itr);
-        }
-        else {
-            itr++;
-        }
+    for (auto kv : recv_mappings) {
+        clean_func(kv.second);
     }
 }

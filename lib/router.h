@@ -35,7 +35,7 @@ private:
     unsigned int gis, gie, gjs, gje;
 
 public:
-    Tile(tile_id_t id, int lis, int lie, int ljs, int lje,
+    Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
     point_t global_to_local_domain(point_t global) const;
     const vector<point_t>& get_points(void) const { return points; }
@@ -56,6 +56,7 @@ public:
 class Mapping {
 private:
 
+    /* FIXME: this can be a shared_ptr. */
     Tile *remote_tile;
 
     /* Ordered set of 'side A' points in the mapping. They are the keys to the map
@@ -85,13 +86,14 @@ public:
             return it->second;
         }
 
+    bool not_in_use(void) const { return side_A_points.empty(); }  
     tile_id_t get_remote_tile_id(void) const { return remote_tile->get_id(); }
 };
 
 class Router {
 private:
 
-    Tile *local_tile;
+    unique_ptr<Tile> local_tile;
     const Config& config;
 
     int num_ranks;
