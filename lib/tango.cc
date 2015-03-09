@@ -97,6 +97,12 @@ void tango_get(const char *field_name, double array[], int size)
     }
     */
 
+    /* Zero the receive array. The get operation will add to the values in
+     * this. */
+    for (int i = 0; i < size; i++) {
+        array[i] = 0;
+    }
+
     transfer->total_recv_size += size;
     transfer->fields.push_back(Field(array, size));
 }

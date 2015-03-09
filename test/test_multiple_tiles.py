@@ -49,9 +49,7 @@ class TestMultipleTiles(unittest.TestCase):
             tango.end_transfer()
 
         else:
-            # Need to pass an array of zeros because tango.get() will add to
-            # the receive array.
-            recv_sst = np.zeros(len(send_sst), dtype='double')
+            recv_sst = np.ones(len(send_sst), dtype='double')
 
             grid_name = 'ice'
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)
