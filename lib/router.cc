@@ -90,43 +90,24 @@ Router::Router(const Config& config,
     build_routing_rules();
 }
 
-Router::~Router()
-{
-    /*
-    for (auto& kv : send_mappings) {
-        while (!kv.second.empty()) {
-            delete kv.second.front();
-            kv.second.pop_front();
-        }
-    }
-
-    for (auto& kv : recv_mappings) {
-        while (!kv.second.empty()) {
-            delete kv.second.front();
-            kv.second.pop_front();
-        }
-    }
-    */
-}
-
 void Router::create_send_mapping(string grid_name, shared_ptr<Tile> t)
 {
     /* Check that the mapping being added is not a duplicate. */
-    for (const auto *m : send_mappings[grid_name]) {
+    for (const auto& m : send_mappings[grid_name]) {
         assert(!t->domain_equal(m->get_remote_tile()));
     }
 
-    Mapping *new_m = new Mapping(t);
+    shared_ptr<Mapping> new_m(new Mapping(t));
     send_mappings[grid_name].push_back(new_m);
 }
 
 void Router::create_recv_mapping(string grid_name, shared_ptr<Tile> t)
 {
-    for (const auto *m : recv_mappings[grid_name]) {
+    for (const auto& m : recv_mappings[grid_name]) {
         assert(!t->domain_equal(m->get_remote_tile()));
     }
 
-    Mapping *new_m = new Mapping(t);
+    shared_ptr<Mapping> new_m(new Mapping(t));
     recv_mappings[grid_name].push_back(new_m);
 }
 
@@ -213,7 +194,7 @@ void Router::exchange_descriptions(void)
 void Router::add_link_to_send_mapping(string grid, unsigned int src_point,
                                       unsigned int dest_point, double weight)
 {
-    for (auto *mapping : get_send_mappings(grid)) {
+    for (auto& mapping : get_send_mappings(grid)) {
 
         /* The tile that this mapping leads to. */
         const shared_ptr<Tile>& remote_tile = mapping->get_remote_tile();
@@ -253,7 +234,7 @@ void Router::add_link_to_recv_mapping(string grid, unsigned int src_point,
                                       unsigned int dest_point, double weight) 
 {
     /* See comments above for explanation of this function. */
-    for (auto *mapping : get_recv_mappings(grid)) {
+    for (auto& mapping : get_recv_mappings(grid)) {
 
         const shared_ptr<Tile>& remote_tile = mapping->get_remote_tile();
         if (remote_tile->has_point(src_point)) {
@@ -356,7 +337,7 @@ void Router::build_routing_rules(void)
  * unused mappings. */
 void Router::remove_unused_mappings(void)
 {
-    auto clean_func = [](list<Mapping *>& mappings) {
+    auto clean_func = [](list<shared_ptr<Mapping> >& mappings) {
         auto it = mappings.begin();
         while (it != mappings.end()) {
 

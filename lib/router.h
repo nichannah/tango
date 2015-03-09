@@ -37,7 +37,6 @@ private:
 public:
     Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
-    ~Tile() { cout << "~Tile called on id " << id << endl; }
     point_t global_to_local_domain(point_t global) const;
     const vector<point_t>& get_points(void) const { return points; }
     bool domain_equal(const shared_ptr<Tile>& another_tile) const;
@@ -99,8 +98,8 @@ private:
     int num_ranks;
 
     /* Mappings that the local_tile participates in. */
-    unordered_map<string, list<Mapping *> > send_mappings;
-    unordered_map<string, list<Mapping *> > recv_mappings;
+    unordered_map<string, list<shared_ptr<Mapping> > > send_mappings;
+    unordered_map<string, list<shared_ptr<Mapping> > > recv_mappings;
 
     void remove_unused_mappings(void);
     bool is_peer_grid(string grid);
@@ -125,13 +124,13 @@ public:
     void exchange_descriptions(void);
     int get_tile_id(void) const
         { assert(local_tile != nullptr); return local_tile->get_id(); }
-    const list<Mapping *>& get_send_mappings(string grid) const
+    const list<shared_ptr<Mapping> >& get_send_mappings(string grid) const
         {
             auto v = send_mappings.find(grid);
             assert(v != send_mappings.end());
             return v->second;
         }
-    const list<Mapping *>& get_recv_mappings(string grid) const
+    const list<shared_ptr<Mapping> >& get_recv_mappings(string grid) const
         {
             auto v = recv_mappings.find(grid);
             assert(v != recv_mappings.end());

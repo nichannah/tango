@@ -116,7 +116,7 @@ void tango_end_transfer()
     if (transfer->total_send_size != 0) {
 
         /* Iterate over the mappings to other tiles that we have. */
-        for (const auto *mapping : router->get_send_mappings(peer_grid)) {
+        for (const auto& mapping : router->get_send_mappings(peer_grid)) {
 
             /* Presently we only support applying interpolation weights on the
              * send side. At some point it may make sense to support receive
@@ -175,7 +175,7 @@ void tango_end_transfer()
     } else {
         /* We are the receiver. We do a blocking receive. */
 
-        for (const auto *mapping : router->get_recv_mappings(peer_grid)) {
+        for (const auto& mapping : router->get_recv_mappings(peer_grid)) {
 
             /* What we do here:
              *
