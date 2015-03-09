@@ -37,9 +37,10 @@ private:
 public:
     Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
          int gis, int gie, int gjs, int gje);
+    ~Tile() { cout << "~Tile called on id " << id << endl; }
     point_t global_to_local_domain(point_t global) const;
     const vector<point_t>& get_points(void) const { return points; }
-    bool domain_equal(const Tile *another_tile) const;
+    bool domain_equal(const shared_ptr<Tile>& another_tile) const;
     tile_id_t get_id(void) const { return id; }
     bool has_point(point_t p) const
         {
@@ -56,8 +57,7 @@ public:
 class Mapping {
 private:
 
-    /* FIXME: this can be a shared_ptr. */
-    Tile *remote_tile;
+    shared_ptr<Tile> remote_tile;
 
     /* Ordered set of 'side A' points in the mapping. They are the keys to the map
      * below. It's a convenience and also provides necessary ordering. */
@@ -70,13 +70,13 @@ private:
     unordered_map<point_t, set< pair<point_t, weight_t> > > side_A_to_B_map;
 
 public:
-    Mapping(Tile *remote_tile) : remote_tile(remote_tile) {}
+    Mapping(shared_ptr<Tile> remote_tile) : remote_tile(remote_tile) {}
     void add_link(point_t side_A_point, point_t side_B_point, weight_t weight)
         {
             side_A_points.insert(side_A_point);
             side_A_to_B_map[side_A_point].insert(make_pair(side_B_point, weight));
         }
-    const Tile *get_remote_tile(void) const { return remote_tile; }
+    const shared_ptr<Tile>&  get_remote_tile(void) const { return remote_tile; }
 
     const set<point_t>& get_side_A_points(void) const { return side_A_points; }
     const set< pair<point_t, weight_t> >& get_side_B(point_t p) const
@@ -112,8 +112,8 @@ private:
     void add_link_to_recv_mapping(string grid, point_t src_point,
                                   point_t dest_point, weight_t weight);
 
-    void create_send_mapping(string grid, Tile *t);
-    void create_recv_mapping(string grid, Tile *t);
+    void create_send_mapping(string grid, shared_ptr<Tile> t);
+    void create_recv_mapping(string grid, shared_ptr<Tile> t);
 
 public:
     Router(const Config& config,

@@ -48,7 +48,7 @@ point_t Tile::global_to_local_domain(point_t global) const
 }
 
 /* FIXME: override == operator for tiles. */
-bool Tile::domain_equal(const Tile *another_tile) const
+bool Tile::domain_equal(const shared_ptr<Tile>& another_tile) const
 {
     return ((lis == another_tile->lis) && (lie == another_tile->lie) &&
             (ljs == another_tile->ljs) && (lje == another_tile->lje) &&
@@ -109,7 +109,7 @@ Router::~Router()
     */
 }
 
-void Router::create_send_mapping(string grid_name, Tile *t)
+void Router::create_send_mapping(string grid_name, shared_ptr<Tile> t)
 {
     /* Check that the mapping being added is not a duplicate. */
     for (const auto *m : send_mappings[grid_name]) {
@@ -120,7 +120,7 @@ void Router::create_send_mapping(string grid_name, Tile *t)
     send_mappings[grid_name].push_back(new_m);
 }
 
-void Router::create_recv_mapping(string grid_name, Tile *t)
+void Router::create_recv_mapping(string grid_name, shared_ptr<Tile> t)
 {
     for (const auto *m : recv_mappings[grid_name]) {
         assert(!t->domain_equal(m->get_remote_tile()));
@@ -188,9 +188,9 @@ void Router::exchange_descriptions(void)
          * actually communicate with will be deleted. */
         if (config.is_peer_grid(grid_name)) {
             /* A tile could get big, so we make pointers and avoid copying. */
-            Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
+            shared_ptr<Tile> t(new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
-                               all_descs[j+6], all_descs[j+7], all_descs[j+8]);
+                               all_descs[j+6], all_descs[j+7], all_descs[j+8]));
 
             /* Now create the mappings from the local tile to this remote tile.
              * These will be populated later. Note that there can be both send
@@ -216,7 +216,7 @@ void Router::add_link_to_send_mapping(string grid, unsigned int src_point,
     for (auto *mapping : get_send_mappings(grid)) {
 
         /* The tile that this mapping leads to. */
-        const Tile *remote_tile = mapping->get_remote_tile();
+        const shared_ptr<Tile>& remote_tile = mapping->get_remote_tile();
         if (remote_tile->has_point(dest_point)) {
 
             /* So we have found a remote tile which is responsible for our
@@ -255,7 +255,7 @@ void Router::add_link_to_recv_mapping(string grid, unsigned int src_point,
     /* See comments above for explanation of this function. */
     for (auto *mapping : get_recv_mappings(grid)) {
 
-        const Tile *remote_tile = mapping->get_remote_tile();
+        const shared_ptr<Tile>& remote_tile = mapping->get_remote_tile();
         if (remote_tile->has_point(src_point)) {
 
             point_t side_A = local_tile->global_to_local_domain(dest_point);
