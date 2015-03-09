@@ -6,19 +6,22 @@
 #include "tango_internal.h"
 #include "router.h"
 
+#define TANGO_TAG 0x7A960
+
 using namespace std;
 
 static Transfer *transfer;
-static CouplingManager *cm;
+static Router *router;
+static Config *config;
 
 /* FIXME: Need to force user to use API according to the config file. */
-/* FIXME: Check return codes of MPI calls. */
-/* FIXME: In order to do the above (and for other reasons) it is probably a
- * good idea that the config file be parsed here. Or let's have a config class. */
+
+/* FIXME: what to do about Fortran indexing convention here. For the time
+ * being stick to C++/Python. */
 
 /* Pass in the grid name, the extents of the global domain and the extents of
  * the local domain that this proc is responsible for. */
-void tango_init(const char *config, const char *grid_name,
+void tango_init(const char *config_dir, const char *grid_name,
                /* Local  domain */
                unsigned int lis, unsigned int lie,
                unsigned int ljs, unsigned int lje,
@@ -28,13 +31,10 @@ void tango_init(const char *config, const char *grid_name,
 {
     transfer = nullptr;
 
-    /* FIXME: what to do about Fortran indexing convention here. For the time
-     * being stick to C++/Python. */
+    config = new Config(string(config_dir), string(grid_name));
+    config->parse_config();
 
-    /* Build the coupling manager for this process. This lasts for the lifetime
-     * of the process. */
-    cm = new CouplingManager(string(config), string(grid_name));
-    cm->build_router(lis, lie, ljs, lje, gis, gie, gjs, gje);
+    router = new Router(*config, lis, lie, ljs, lje, gis, gie, gjs, gje);
 }
 
 static void complete_comms(void)
@@ -62,8 +62,8 @@ void tango_put(const char *field_name, double array[], int size)
 {
     assert(transfer != NULL);
     assert(transfer->total_recv_size == 0);
-    if (!cm->can_send_field_to_grid(string(field_name),
-                                    transfer->get_peer_grid())) {
+    if (!config->can_send_field_to_grid(string(field_name),
+                                        transfer->get_peer_grid())) {
         cerr << "Error: according to config.yaml " << string(field_name)
              << " can't be put to " << transfer->get_peer_grid()
              << " grid" << endl;
@@ -71,7 +71,7 @@ void tango_put(const char *field_name, double array[], int size)
     }
     /* Check that the field size is correct. */
     /*
-    if (cm->expected_field_size() == size) {
+    if (config->expected_field_size() == size) {
         assert(false);
     }
     */
@@ -84,8 +84,8 @@ void tango_get(const char *field_name, double array[], int size)
 {
     assert(transfer != nullptr);
     assert(transfer->total_send_size == 0);
-    if (!cm->can_recv_field_from_grid(string(field_name),
-                                      transfer->get_peer_grid())) {
+    if (!config->can_recv_field_from_grid(string(field_name),
+                                          transfer->get_peer_grid())) {
         cerr << "Error: according to config.yaml " << string(field_name)
              << " can't be get from " << transfer->get_peer_grid() << " grid "
              << endl;
@@ -110,7 +110,6 @@ void tango_end_transfer()
     assert(transfer->total_send_size == 0 || transfer->total_recv_size == 0);
     assert(transfer->total_send_size != 0 || transfer->total_recv_size != 0);
 
-    Router *router = cm->get_router();
     string peer_grid = transfer->get_peer_grid();
 
     /* We are the sender */
@@ -165,10 +164,9 @@ void tango_end_transfer()
 
             /* Now do the actual send to the remote tile associated with this
              * mapping. */
-            /* FIXME: tag? */
             MPI_Request *request = new MPI_Request;
             MPI_Isend(send_buf, count, MPI_DOUBLE, mapping->get_remote_tile_id(),
-                      0x7A960, MPI_COMM_WORLD, request);
+                      TANGO_TAG, MPI_COMM_WORLD, request);
 
             /* Keep these, they need be freed later. */
             transfer->pending_sends.push_back(PendingSend(request, send_buf));
@@ -188,10 +186,10 @@ void tango_end_transfer()
              * 3) the data comes in as a sequential array (of course) but each
              * array element can refer to any local point, so the data has to
              * be 'unboxed', i.e. loaded into the correct index of the receive
-             * field. 
+             * field.
              *
              * 4) Since many mappings can contribute to a single point we use
-             * += to accumulate all incoming data for that points. 
+             * += to accumulate all incoming data for that points.
              */
 
             const auto& local_points = mapping->get_side_A_points();
@@ -201,7 +199,7 @@ void tango_end_transfer()
 
             MPI_Status status;
             MPI_Recv(recv_buf, count, MPI_DOUBLE, mapping->get_remote_tile_id(),
-                     0x7A960, MPI_COMM_WORLD, &status);
+                     TANGO_TAG, MPI_COMM_WORLD, &status);
 
             offset = 0;
             for (const auto& field : transfer->fields) {
@@ -221,6 +219,7 @@ void tango_finalize()
     complete_comms();
     assert(transfer == nullptr);
 
-    delete cm;
-    cm = nullptr;
+    delete router;
+    delete config;
+    router = nullptr;
 }

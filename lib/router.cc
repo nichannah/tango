@@ -1,28 +1,15 @@
 
-#include <fstream>
 #include <algorithm>
-#include <netcdf>
 #include <mpi.h>
 #include <assert.h>
 #include <unistd.h>
-#include <yaml-cpp/yaml.h>
 
 #include "router.h"
-
-using namespace netCDF;
 
 #define MAX_GRID_NAME_SIZE 32
 #define DESCRIPTION_SIZE (MAX_GRID_NAME_SIZE + 9)
 #define WEIGHT_THRESHOLD 1e-12
 
-static bool file_exists(string file)
-{
-    if (access(file.c_str(), F_OK) == -1) {
-        return false;
-    } else {
-        return true;
-    }
-}
 
 Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
            int gis, int gie, int gjs, int gje)
@@ -84,12 +71,10 @@ void Tile::pack(int *box, size_t size)
     box[8] = gje;
 }
 
-Router::Router(string grid_name,
-               unordered_set<string>& send_grid_names,
-               unordered_set<string>& recv_grid_names,
+Router::Router(const Config& config,
                unsigned int lis, unsigned int lie, unsigned int ljs,
                unsigned int lje, unsigned int gis, unsigned int gie,
-               unsigned int gjs, unsigned int gje) : local_grid_name(grid_name)
+               unsigned int gjs, unsigned int gje) : config(config)
 {
     tile_id_t tile_id;
 
@@ -97,10 +82,9 @@ Router::Router(string grid_name,
     MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
 
     local_tile = new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje);
-    assert(send_grid_names.find(local_grid_name) == send_grid_names.end());
-    assert(recv_grid_names.find(local_grid_name) == recv_grid_names.end());
-    send_grids = send_grid_names;
-    recv_grids = recv_grid_names;
+
+    exchange_descriptions();
+    build_routing_rules();
 }
 
 Router::~Router()
@@ -154,6 +138,7 @@ void Router::exchange_descriptions(void)
 
     /* Marshall my description into an array. */
     /* We waste some bytes here when sending the grid name. */
+    string local_grid_name = config.get_local_grid();
     assert(local_grid_name.size() <= MAX_GRID_NAME_SIZE);
     for (i = 0; i < MAX_GRID_NAME_SIZE; i++) {
         if (i < local_grid_name.size()) {
@@ -199,7 +184,7 @@ void Router::exchange_descriptions(void)
 
         /* Make a new tile and mappings to grid_name. Any tile that we don't
          * actually communicate with will be deleted. */
-        if (is_peer_grid(grid_name)) {
+        if (config.is_peer_grid(grid_name)) {
             /* A tile could get big, so we make pointers and avoid copying. */
             Tile *t = new Tile(all_descs[j], all_descs[j+1], all_descs[j+2],
                                all_descs[j+3], all_descs[j+4], all_descs[j+5],
@@ -209,11 +194,11 @@ void Router::exchange_descriptions(void)
             /* Now create the mappings from the local tile to this remote tile.
              * These will be populated later. Note that there can be both send
              * and receive mappings for a single tile. */
-            if (is_send_grid(grid_name)) {
+            if (config.is_send_grid(grid_name)) {
                 create_send_mapping(grid_name, t);
             }
 
-            if (is_recv_grid(grid_name)) {
+            if (config.is_recv_grid(grid_name)) {
                 create_recv_mapping(grid_name, t);
             }
         }
@@ -221,40 +206,6 @@ void Router::exchange_descriptions(void)
 
     /* FIXME: check that the domains of remote procs don't overlap. */
     delete[] all_descs;
-}
-
-void Router::read_netcdf(string filename, vector<unsigned int>& src_points,
-                         vector<unsigned int>& dest_points,
-                         vector<double>& weights)
-{
-    /* open the remapping weights file */
-    NcFile rmp_file(filename, NcFile::read);
-    NcVar src_var = rmp_file.getVar("col");
-    NcVar dest_var = rmp_file.getVar("row");
-    NcVar weights_var = rmp_file.getVar("S");
-
-    /* Assume that these are all 1 dimensional. */
-    unsigned int src_size = src_var.getDim(0).getSize();
-    unsigned int dest_size = dest_var.getDim(0).getSize();
-    unsigned int weights_size = weights_var.getDim(0).getSize();
-    assert(src_size == dest_size);
-    assert(dest_size == weights_size);
-
-    unsigned int *src_data = new unsigned int[src_size];
-    unsigned int *dest_data = new unsigned int[dest_size];
-    double *weights_data = new double[weights_size];
-
-    src_var.getVar(src_data);
-    dest_var.getVar(dest_data);
-    weights_var.getVar(weights_data);
-
-    src_points.insert(src_points.begin(), src_data, src_data + src_size);
-    dest_points.insert(dest_points.begin(), dest_data, dest_data + dest_size);
-    weights.insert(weights.begin(), weights_data, weights_data + weights_size);
-
-    delete[] src_data;
-    delete[] dest_data;
-    delete[] weights_data;
 }
 
 
@@ -314,7 +265,7 @@ void Router::add_link_to_recv_mapping(string grid, unsigned int src_point,
     }
 }
 
-void Router::build_routing_rules(string config_dir)
+void Router::build_routing_rules(void)
 {
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the mapping graph. */
@@ -330,18 +281,13 @@ void Router::build_routing_rules(string config_dir)
      * 4. Combination of above: and sort points before iterating over them. */
 
     /* Iterate over all the grids that we send to. */
-    for (auto& grid : send_grids) {
+    for (const auto& grid : config.get_send_grids()) {
         vector<unsigned int> src_points;
         vector<unsigned int> dest_points;
         vector<double> weights;
 
-        string remap_file = config_dir + "/" + local_grid_name + "_to_" +
-                            grid + "_rmp.nc";
-        if (!file_exists(remap_file)) {
-            cerr << "Error: " << remap_file << " does not exist." << endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
-        read_netcdf(remap_file, src_points, dest_points, weights);
+        config.read_weights(config.get_local_grid(), grid,
+                            src_points, dest_points, weights);
 
         /* For all points that the local tile is responsible for set up a
          * mapping to a tile on the grid that we are sending to. */
@@ -365,18 +311,13 @@ void Router::build_routing_rules(string config_dir)
     }
 
     /* Iterate over all the grids that we receive from. */
-    for (auto& grid : recv_grids) {
+    for (const auto& grid : config.get_recv_grids()) {
         vector<unsigned int> src_points;
         vector<unsigned int> dest_points;
         vector<double> weights;
 
-        string remap_file = config_dir + "/" + grid + "_to_" +
-                            local_grid_name + "_rmp.nc";
-        if (!file_exists(remap_file)) {
-            cerr << "Error: " << remap_file << " does not exist." << endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
-        read_netcdf(remap_file, src_points, dest_points, weights);
+        config.read_weights(grid, config.get_local_grid(),
+                            src_points, dest_points, weights);
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
@@ -438,117 +379,3 @@ void Router::remove_unused_mappings(void)
         }
     }
 }
-
-bool Router::is_peer_grid(string grid)
-{
-    if (is_send_grid(grid) or is_recv_grid(grid)) {
-        return true;
-    }
-    return false;
-}
-
-bool Router::is_send_grid(string grid)
-{
-    if (send_grids.find(grid) != send_grids.end()) {
-        return true;
-    }
-    return false;
-}
-
-bool Router::is_recv_grid(string grid)
-{
-    if (recv_grids.find(grid) != recv_grids.end()) {
-        return true;
-    }
-    return false;
-}
-
-CouplingManager::CouplingManager(string config_dir, string grid_name)
-    : config_dir(config_dir), grid_name(grid_name) {}
-
-/* Separate this from the constructor to make testing easier. */
-void CouplingManager::build_router(int lis, int lie, int ljs, int lje,
-                                  int gis, int gie, int gjs, int gje)
-{
-    unordered_set<string> dest_grids, src_grids;
-
-    parse_config(this->config_dir, this->grid_name, dest_grids, src_grids);
-
-    assert(router == nullptr);
-    router = new Router(this->grid_name, dest_grids, src_grids,
-                        lis, lie, ljs, lje, gis, gie, gjs, gje);
-    router->exchange_descriptions();
-    router->build_routing_rules(this->config_dir);
-}
-
-/* Parse yaml config file. Find out which grids communicate and through which
- * fields. */
-void CouplingManager::parse_config(string config_dir, string local_grid_name,
-                                   unordered_set<string>& dest_grids,
-                                   unordered_set<string>& src_grids)
-{
-    YAML::Node mappings, fields;
-
-    string config_file = config_dir + "/config.yaml";
-    if (!file_exists(config_file)) {
-        cerr << "Error: " << config_file << " does not exist." << endl;
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-    mappings = YAML::LoadFile(config_file)["mappings"];
-
-    /* Iterate over mappings. */
-    for (size_t i = 0; i < mappings.size(); i++) {
-        string src_grid = mappings[i]["source_grid"].as<string>();
-        string dest_grid = mappings[i]["destination_grid"].as<string>();
-
-        /* Check that this combination has not already been seen. */
-        if (dest_grids.find(dest_grid) != dest_grids.end() &&
-            src_grids.find(src_grid) != src_grids.end()) {
-            cerr << "Error: duplicate entry in grid." << endl;
-            cerr << "Mapping with source_grid = " << src_grid << " and "
-                 << " destination_grid = " << dest_grid
-                 << " occurs more than once." << endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
-
-        if (local_grid_name == src_grid) {
-            dest_grids.insert(dest_grid);
-        } else if (local_grid_name == dest_grid) {
-            src_grids.insert(src_grid);
-        } else {
-            continue;
-        }
-
-        fields = mappings[i]["fields"];
-        for (size_t k = 0; k < fields.size(); k++) {
-            string field_name = fields[k].as<string>();
-
-            if (local_grid_name == src_grid) {
-               dest_grid_to_fields[dest_grid].push_back(field_name);
-            } else if (local_grid_name == dest_grid) {
-               src_grid_to_fields[src_grid].push_back(field_name);
-            }
-        }
-    }
-}
-
-bool CouplingManager::can_send_field_to_grid(string field, string grid)
-{
-    for (const auto &f : dest_grid_to_fields[grid]) {
-        if (f == field) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool CouplingManager::can_recv_field_from_grid(string field, string grid)
-{
-    for (const auto &f : src_grid_to_fields[grid]) {
-        if (f == field) {
-            return true;
-        }
-    }
-    return false;
-}
-
