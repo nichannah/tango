@@ -31,7 +31,7 @@ class TestMultipleTiles(unittest.TestCase):
         grid_name = 'ocean'
 
         send_sst = np.arange(16.0)
-        config = os.path.join(self.test_dir, 'test_input-1_mappings-2_grids')
+        config = os.path.join(self.test_dir, 'test_input-1_mappings-2_grids-4x4_to_4x4')
 
         if self.rank == 0:
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 2, 0, 4, 0, 4)
@@ -49,7 +49,9 @@ class TestMultipleTiles(unittest.TestCase):
             tango.end_transfer()
 
         else:
-            recv_sst = np.ones(len(send_sst), dtype='double')
+            # Need to pass an array of zeros because tango.get() will add to
+            # the receive array.
+            recv_sst = np.zeros(len(send_sst), dtype='double')
 
             grid_name = 'ice'
             tango = coupler.Tango(config, grid_name, 0, 4, 0, 4, 0, 4, 0, 4)

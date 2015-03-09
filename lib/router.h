@@ -119,7 +119,6 @@ public:
            unsigned int lis, unsigned int lie, unsigned int ljs,
            unsigned int lje, unsigned int gis, unsigned int gie,
            unsigned int gjs, unsigned int gje);
-    ~Router();
     void build_routing_rules(void);
     void exchange_descriptions(void);
     int get_tile_id(void) const
