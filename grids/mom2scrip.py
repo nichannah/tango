@@ -53,10 +53,10 @@ class MomGrid:
         # FIXME: do these.
 
         if mask is None:
-            self.mask = np.zeros((self.x_t.shape[0], self.x_t.shape[1]))
+            self.mask = np.zeros((self.x_t.shape[0], self.x_t.shape[1]), dtype=bool)
         else:
             with nc.Dataset(mask) as f:
-                self.mask = f.vairbles['mask'][:]
+                self.mask = f.variables['mask'][:]
 
 
     def make_scrip(self, f, x, y, clon, clat):
@@ -68,39 +68,28 @@ class MomGrid:
         grid_dims = f.createVariable('grid_dims', 'i4', ('grid_rank'))
         grid_dims[:] = [x.shape[1], x.shape[0]]
 
-        print('asdlfkj')
-
         center_lat = f.createVariable('grid_center_lat', 'f8', ('grid_size'))
         center_lat.units = 'degrees'
         center_lat[:] = y[:].flatten()
-
-        print('asdlfkj')
 
         center_lon = f.createVariable('grid_center_lon', 'f8', ('grid_size'))
         center_lon.units = 'degrees'
         center_lon[:] = x[:].flatten()
 
-        print('asdlfkj')
-
         imask = f.createVariable('grid_imask', 'i4', ('grid_size'))
         imask.units = 'unitless'
         # Invert the mask. SCRIP uses zero for points that do not participate.
-        imask[:] = ~(self.mask[:].flatten())
-
-        print('asdlfkj')
+        imask[:] = np.invert(self.mask[:]).flatten()
 
         corner_lat = f.createVariable('grid_corner_lat', 'f8',
                                       ('grid_size', 'grid_corners'))
         corner_lat.units = 'degrees'
         corner_lat[:] = clat[:].flatten()
 
-        print('asdlfkj')
-
         corner_lon = f.createVariable('grid_corner_lon', 'f8',
                                       ('grid_size', 'grid_corners'))
         corner_lon.units = 'degrees'
         corner_lon[:] = clon[:].flatten()
-        print('asdlfkj')
 
 
     def to_scrip(self, type, output, command):
