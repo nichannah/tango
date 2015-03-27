@@ -28,7 +28,8 @@ private:
      * indices. e.g. on a 2x2 grid the indices would be:
      * | 3 | 4 |
      * | 1 | 2 |
-     * This is how the ESMF remapping files index points. */
+     * This is how the ESMF remapping files index points.
+     * This is kept sorted for performance reasons. */
     vector<point_t> points;
 
     /* Global extent domain that this tile is a part of. */
@@ -43,8 +44,8 @@ public:
     tile_id_t get_id(void) const { return id; }
     bool has_point(point_t p) const
         {
-            auto it = find(points.begin(), points.end(), p);
-            return (it != points.end());
+            /* Since points is sorted we can do this. */
+            return binary_search(points.begin(), points.end(), p);
         }
     void pack(int *box, size_t size);
 };

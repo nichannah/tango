@@ -7,7 +7,8 @@ class Tango:
 
     def __init__(self, config, grid, lis, lie, ljs, lje, gis, gie, gjs, gje):
 
-        self.lib = ct.cdll.LoadLibrary('libtango.so')
+        my_path = os.path.dirname(os.path.realpath(__file__))
+        self.lib = ct.cdll.LoadLibrary(os.path.join(my_path, 'libtango.so'))
 
         self.lib.tango_init.argtypes = [ct.POINTER(ct.c_char),
                                         ct.POINTER(ct.c_char),

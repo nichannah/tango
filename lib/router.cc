@@ -33,18 +33,21 @@ Tile::Tile(tile_id_t tile_id, int lis, int lie, int ljs, int lje,
             index++;
         }
     }
+
+    sort(points.begin(), points.end());
 }
 
 point_t Tile::global_to_local_domain(point_t global) const
 {
-    point_t local = 0;
-    for (auto p : points) {
-        if (p == global) {
-            return local;
-        }
-        local++;
-    }
-    assert(false);
+    /* We just need to find the index of 'global' in the points vector. */
+    /* FIXME: Couldn't this be calculated? Profile before spending any time on
+     * it though, already very quick. */
+
+    /* Do a fast search because points is sorted. */
+    auto it = lower_bound(points.begin(), points.end(), global);
+    assert(*it == global);
+
+    return (it - points.begin());
 }
 
 /* FIXME: override == operator for tiles. */
@@ -77,7 +80,7 @@ Router::Router(const Config& config,
                unsigned int gjs, unsigned int gje)
     : config(config)
 {
-    
+
     tile_id_t tile_id;
 
     MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
@@ -252,15 +255,14 @@ void Router::build_routing_rules(void)
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the mapping graph. */
 
-    /* FIXME: performance may be a problem here. This loop may take in
-     * the order of seconds for a 1000x1000 grid with 1000 procs, it may
-     * not scale well to larger grids. Ways to improve performance:
-     * 1. Set up a point -> tile/PE map. This could be several Mb in size.
-     * 2. Figure out the maximum number of times a local point can appear as a
+    /* FIXME: performance is a serious problem here. This loop takes in the
+     * order of minutes (hours?) for a 1000x1000 grid with 2 procs.
+     * Ways to improve performance:
+     * 1. Figure out the maximum number of times a local point can appear as a
      *    source point, exit loop after this number is reached.
-     * 3. Tune to the particular layout of the remapping file, e.g. it looks
+     * 2. Tune to the particular layout of the remapping file, e.g. it looks
      *    like the dest points are presented in consecutive order.
-     * 4. Combination of above: and sort points before iterating over them. */
+     * 3. Combination of above: and sort points before iterating over them. */
 
     /* Iterate over all the grids that we send to. */
     for (const auto& grid : config.get_send_grids()) {
@@ -269,16 +271,32 @@ void Router::build_routing_rules(void)
         vector<double> weights;
 
         config.read_weights(config.get_local_grid(), grid,
-                            src_points, dest_points, weights);
+                            src_points, dest_points, weights, true);
 
         /* For all points that the local tile is responsible for set up a
          * mapping to a tile on the grid that we are sending to. */
+        cout << "send side local_tile->get_points().size() = " << local_tile->get_points().size()  << endl; 
+        int count = 0;
+        unsigned int src_idx = 0;
         for (const auto point : local_tile->get_points()) {
-            for (unsigned int i = 0; i < src_points.size(); i++) {
+            if (count % 1000 == 0) {
+                cout << "." << flush;
+            }
+            count++;
+            /* We don't start searching from src_idx == 0, due to sorting lower
+             * points have already been consumed. */
+            for (; src_idx < src_points.size(); src_idx++) {
 
-                unsigned int src_point = src_points[i];
-                unsigned int dest_point = dest_points[i];
-                double weight = weights[i];
+                unsigned int src_point = src_points[src_idx];
+                unsigned int dest_point = dest_points[src_idx];
+                double weight = weights[src_idx];
+
+                /* Since local_tile points and src_points are both sorted in
+                 * ascending order. if src_point > local point then there's no
+                 * use continuing to search, won't find anything. */
+                if (src_point > point) {
+                    break;
+                }
 
                 if ((src_point == point) && (weight > WEIGHT_THRESHOLD)) {
                     /* So this source points exists on the local tile, also the
@@ -299,16 +317,27 @@ void Router::build_routing_rules(void)
         vector<double> weights;
 
         config.read_weights(grid, config.get_local_grid(),
-                            src_points, dest_points, weights);
+                            src_points, dest_points, weights, false);
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
+        cout << "recv side local_tile->get_points().size() = " << local_tile->get_points().size()  << endl; 
+        int count = 0;
+        unsigned dest_idx = 0;
         for (const auto point : local_tile->get_points()) {
-            for (unsigned int i = 0; i < dest_points.size(); i++) {
+            if (count % 100000 == 0) {
+                cout << "," << flush;
+            }
+            count++;
+            for (; dest_idx < dest_points.size(); dest_idx++) {
 
-                unsigned int src_point = src_points[i];
-                unsigned int dest_point = dest_points[i];
-                double weight = weights[i];
+                unsigned int src_point = src_points[dest_idx];
+                unsigned int dest_point = dest_points[dest_idx];
+                double weight = weights[dest_idx];
+
+                if (dest_point > point) {
+                    break;
+                }
 
                 if ((dest_point == point) && (weight > WEIGHT_THRESHOLD)) {
                     add_link_to_recv_mapping(grid, src_point, dest_point, weight);
