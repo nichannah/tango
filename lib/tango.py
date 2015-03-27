@@ -30,6 +30,7 @@ class Tango:
 
     def put(self, field_name, array):
         tmp = np.ascontiguousarray(array, dtype='float64')
+        print('put max(tmp) {}'.format(np.max(tmp)))
         self.lib.tango_put(field_name,
                            tmp.ctypes.data_as(ct.POINTER(ct.c_double)),
                            tmp.size)
@@ -39,6 +40,8 @@ class Tango:
         self.lib.tango_get(field_name,
                            tmp.ctypes.data_as(ct.POINTER(ct.c_double)),
                            tmp.size)
+        print('get max(tmp) {}'.format(np.max(tmp)))
+
 
     def end_transfer(self):
         self.lib.tango_end_transfer()

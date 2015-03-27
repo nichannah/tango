@@ -8,6 +8,7 @@ import netCDF4 as nc
 import tango as coupler
 import ctypes as ct
 import numpy as np
+import matplotlib.pyplot as plt
 
 class TestRegrid(unittest.TestCase):
     """
@@ -38,11 +39,13 @@ class TestRegrid(unittest.TestCase):
         if self.rank == 0:
             # Read in field to to regridded.
             with nc.Dataset(os.path.join(config, 'u_10.0001.nc')) as f:
-                v = f.variables['U_10'][0,:,:]
+                u = f.variables['U_10'][0,:,:]
+
+            print('send max(u) {}'.format(np.max(u)))
 
             tango = coupler.Tango(config, 'atm', 0, 192, 0, 94, 0, 192, 0, 94)
             tango.begin_transfer(0, 'ice')
-            tango.put('u', v.flatten())
+            tango.put('u', u.flatten())
             tango.end_transfer()
         else:
             recv_u = np.zeros((1440, 1080))
@@ -50,6 +53,10 @@ class TestRegrid(unittest.TestCase):
             tango.begin_transfer(0, 'atm')
             tango.get('u', recv_u.flatten())
             tango.end_transfer()
+
+            print('recv max(u) {}'.format(np.max(recv_u)))
+            plt.imshow(recv_u.reshape((1440, 1080)))
+            plt.savefig('test.png')
 
             # Write out regridded field.
             #import pdb
