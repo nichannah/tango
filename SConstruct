@@ -5,7 +5,7 @@ include_paths = [os.environ['OMPI_ROOT'] + '/include/GNU',
                  os.environ['HOME'] + '/.local/include/']
 
 env = Environment(ENV = os.environ, CXX='mpic++', CC='mpicc',
-                  CXXFLAGS=['-std=c++11', '-Wall', '-g', '-O0'],
+                  CXXFLAGS=['-std=c++11', '-Wall', '-g', '-O3'],
                   CPPPATH=['#include'] + include_paths)
 SConscript('lib/SConscript', exports='env')
 SConscript('test/SConscript', exports='env')

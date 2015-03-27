@@ -56,7 +56,7 @@ TEST(Tango, big_send_receive)
     double src_u[src_x * src_y];
 
     for (int i = 0; i < src_x * src_y; i++) {
-        src_u[i] = 7;
+        src_u[i] = 1;
     }
 
     string config_dir = "./test_input-1_mappings-2_grids-192x94_to_1440x1080/";
@@ -81,11 +81,11 @@ TEST(Tango, big_send_receive)
         tango_end_transfer();
 
         /* Check that send and receive are the same. */
-        /*
-        for (int i = 0; i < l_rows * l_cols; i++) {
-            EXPECT_EQ(send_sst[i], recv_sst[i]);
+        double total = 0;
+        for (int i = 0; i < x * y; i++) {
+            total += u[i];
         }
-        */
+        EXPECT_NEAR(total, x * y, 1e-6);
     }
 
     tango_finalize();
