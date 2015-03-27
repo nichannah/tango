@@ -275,13 +275,8 @@ void Router::build_routing_rules(void)
 
         /* For all points that the local tile is responsible for set up a
          * mapping to a tile on the grid that we are sending to. */
-        int count = 0;
         unsigned int src_idx = 0;
         for (const auto point : local_tile->get_points()) {
-            if (count % 1000 == 0) {
-                cout << "." << flush;
-            }
-            count++;
             /* We don't start searching from src_idx == 0, due to sorting lower
              * points have already been consumed. */
             for (; src_idx < src_points.size(); src_idx++) {
@@ -320,13 +315,8 @@ void Router::build_routing_rules(void)
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
-        int count = 0;
         unsigned dest_idx = 0;
         for (const auto point : local_tile->get_points()) {
-            if (count % 100000 == 0) {
-                cout << "," << flush;
-            }
-            count++;
             for (; dest_idx < dest_points.size(); dest_idx++) {
 
                 unsigned int src_point = src_points[dest_idx];
