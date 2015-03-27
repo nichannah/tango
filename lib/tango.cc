@@ -162,6 +162,8 @@ void tango_end_transfer()
                         point_t local_point = lp_and_w.first;
                         double weight = lp_and_w.second;
 
+                        assert(local_point < field.size);
+                        assert(offset < count);
                         send_buf[offset] += field.buffer[local_point] * weight;
                     }
                     offset++;
@@ -210,6 +212,9 @@ void tango_end_transfer()
             offset = 0;
             for (const auto& field : transfer->fields) {
                 for (auto& lp : local_points) {
+
+                    assert(lp < field.size);
+                    assert(offset < count);
                     field.buffer[lp] += recv_buf[offset];
                     offset++;
                 }

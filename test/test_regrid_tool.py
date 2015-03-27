@@ -37,19 +37,19 @@ class TestRegrid(unittest.TestCase):
                               'test_input-1_mappings-2_grids-192x94_to_1440x1080')
         if self.rank == 0:
             # Read in field to to regridded.
-            with nc.Dataset(os.path.join(config, 'v_10.0001.nc')) as f:
-                v = f.variables['V_10'][0,:,:]
+            with nc.Dataset(os.path.join(config, 'u_10.0001.nc')) as f:
+                v = f.variables['U_10'][0,:,:]
 
             tango = coupler.Tango(config, 'atm', 0, 192, 0, 94, 0, 192, 0, 94)
-            #tango.begin_transfer(0, 'ice')
-            #tango.put('v', v.flatten())
-            #tango.end_transfer()
+            tango.begin_transfer(0, 'ice')
+            tango.put('u', v.flatten())
+            tango.end_transfer()
         else:
-            recv_v = np.zeros((1440, 1080))
+            recv_u = np.zeros((1440, 1080))
             tango = coupler.Tango(config, 'ice', 0, 1440, 0, 1080, 0, 1440, 0, 1080)
-            #tango.begin_transfer(0, 'atm')
-            #tango.get('v', recv_v.flatten())
-            #tango.end_transfer()
+            tango.begin_transfer(0, 'atm')
+            tango.get('u', recv_u.flatten())
+            tango.end_transfer()
 
             # Write out regridded field.
             #import pdb

@@ -29,13 +29,13 @@ class Tango:
         self.lib.tango_begin_transfer(time, grid_name)
 
     def put(self, field_name, array):
-        tmp = np.ascontiguousarray(array)
+        tmp = np.ascontiguousarray(array, dtype='float64')
         self.lib.tango_put(field_name,
                            tmp.ctypes.data_as(ct.POINTER(ct.c_double)),
                            tmp.size)
 
     def get(self, field_name, array):
-        tmp = np.ascontiguousarray(array)
+        tmp = np.ascontiguousarray(array, dtype='float64')
         self.lib.tango_get(field_name,
                            tmp.ctypes.data_as(ct.POINTER(ct.c_double)),
                            tmp.size)
