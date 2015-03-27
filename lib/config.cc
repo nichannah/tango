@@ -91,12 +91,18 @@ vector<unsigned int> sort_permutation(vector<unsigned int> const& vec)
 }
 
 /* Apply a permutation to vector. */
-/* template <typename T> */
-void apply_permutation(vector<unsigned int>& vec,
+template <typename T>
+void apply_permutation(vector<T>& vec,
                        vector<unsigned int> const& perm)
 {
-    transform(perm.begin(), perm.end(), vec.begin(),
+    assert(vec.size() == perm.size());
+
+    vector<T> sorted_vec(perm.size());
+
+    transform(perm.begin(), perm.end(), sorted_vec.begin(),
         [&](unsigned int i){ return vec[i]; });
+
+    vec = sorted_vec;
 }
 
 
@@ -152,9 +158,7 @@ void Config::read_weights(string src_grid, string dest_grid,
     }
     apply_permutation(src_points, perm);
     apply_permutation(dest_points, perm);
-    /*
     apply_permutation(weights, perm);
-    */
 
     delete[] src_data;
     delete[] dest_data;

@@ -275,7 +275,6 @@ void Router::build_routing_rules(void)
 
         /* For all points that the local tile is responsible for set up a
          * mapping to a tile on the grid that we are sending to. */
-        cout << "send side local_tile->get_points().size() = " << local_tile->get_points().size()  << endl; 
         int count = 0;
         unsigned int src_idx = 0;
         for (const auto point : local_tile->get_points()) {
@@ -321,7 +320,6 @@ void Router::build_routing_rules(void)
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
-        cout << "recv side local_tile->get_points().size() = " << local_tile->get_points().size()  << endl; 
         int count = 0;
         unsigned dest_idx = 0;
         for (const auto point : local_tile->get_points()) {
