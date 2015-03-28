@@ -315,7 +315,7 @@ void Router::build_routing_rules(void)
 
         /* For all points that this tile is responsible for, figure out which
          * remote tiles it needs to receive from. */
-        unsigned dest_idx = 0;
+        unsigned int dest_idx = 0;
         for (const auto point : local_tile->get_points()) {
             for (; dest_idx < dest_points.size(); dest_idx++) {
 

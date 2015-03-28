@@ -37,33 +37,36 @@ class TestRegrid(unittest.TestCase):
         Regrid a single field from CORE to MOM grid.
         """
 
+        #config = os.path.join(self.test_dir,
+        #                      'test_input-regrid_tool-conserve')
+        #config = os.path.join(self.test_dir,
+        #                      'test_input-regrid_tool-bilinear')
         config = os.path.join(self.test_dir,
-                              'test_input-1_mappings-2_grids-192x94_to_1440x1080')
+                              'test_input-regrid_tool-patch')
         if self.rank == 0:
             # Read in field to to regridded.
-            with nc.Dataset(os.path.join(config, 'u_10.0001.nc')) as f:
-                u = np.array(f.variables['U_10'][0,:,:], dtype='float64')
-
-            print('send max(u) {}'.format(np.max(u)))
+            #with nc.Dataset(os.path.join(config, 'u_10.0001.nc')) as f:
+            #    u = np.array(f.variables['U_10'][0,:,:], dtype='float64')
+            u = np.zeros((94, 192))
+            u[:47, :] = 10
 
             tango = coupler.Tango(config, 'atm', 0, 192, 0, 94, 0, 192, 0, 94)
             tango.begin_transfer(0, 'ice')
             tango.put('u', u)
             tango.end_transfer()
+
+            plt.imshow(u, origin='lower')
+            plt.savefig('src_patch.png')
+
         else:
-            recv_u = np.zeros((1440, 1080), dtype='float64')
+            recv_u = np.zeros((1080, 1440), dtype='float64')
             tango = coupler.Tango(config, 'ice', 0, 1440, 0, 1080, 0, 1440, 0, 1080)
             tango.begin_transfer(0, 'atm')
             tango.get('u', recv_u)
             tango.end_transfer()
 
-            print('recv max(u) {}'.format(np.max(recv_u)))
-            plt.imshow(recv_u)
-            plt.savefig('test.png')
-
-            # Write out regridded field.
-            #import pdb
-            #pdb.set_trace()
+            plt.imshow(recv_u, origin='lower')
+            plt.savefig('dest_patch.png')
 
         tango.finalize()
 
