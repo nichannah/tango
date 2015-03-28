@@ -78,6 +78,44 @@ class TestBasicDecomposition(unittest.TestCase):
 
         tango.finalize()
 
+
+    def test_different_sized_grids(self):
+        """
+        Send a single array between different sized grids.
+        """
+
+        send_array = np.zeros((4, 4))
+        send_array[0, :] = 1.0
+        send_array[1, :] = 2.0
+        send_array[2, :] = 3.0
+        send_array[3, :] = 4.0
+
+        config = os.path.join(self.test_dir,
+                              'test_input-1_mappings-2_grids-4x4_to_8x8')
+        if self.rank == 0:
+            tango = coupler.Tango(config, 'ice', 0, 4, 0, 4, 0, 4, 0, 4)
+            tango.begin_transfer(0, 'ocean')
+            tango.put('temp', send_array)
+            tango.end_transfer()
+        else:
+            recv_array = np.zeros((8, 8))
+
+            tango = coupler.Tango(config, 'ocean', 0, 8, 0, 8, 0, 8, 0, 8)
+            tango.begin_transfer(0, 'ice')
+            tango.get('temp', recv_array)
+            tango.end_transfer()
+
+            area_ratio = recv_array.size / send_array.size
+            np.testing.assert_almost_equal(np.sum(recv_array),
+                                           np.sum(send_array) * area_ratio)
+            np.testing.assert_almost_equal(np.mean(send_array[0, :]),
+                                           np.mean(recv_array[0, :]))
+            np.testing.assert_almost_equal(np.mean(send_array[-1, :]),
+                                           np.mean(recv_array[-1, :]))
+
+        tango.finalize()
+
+
     def test_multiple_variable_send_receive(self):
         """
         Send multiple arrays.
