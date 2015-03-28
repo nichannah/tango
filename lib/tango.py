@@ -1,11 +1,16 @@
 
 import ctypes as ct
 import os
+import resource
 import numpy as np
 
 class Tango:
 
     def __init__(self, config, grid, lis, lie, ljs, lje, gis, gie, gjs, gje):
+
+        # FIXME: this doesn't appear to work.
+        resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY,
+                                                   resource.RLIM_INFINITY))
 
         my_path = os.path.dirname(os.path.realpath(__file__))
         self.lib = ct.cdll.LoadLibrary(os.path.join(my_path, 'libtango.so'))
@@ -29,18 +34,20 @@ class Tango:
         self.lib.tango_begin_transfer(time, grid_name)
 
     def put(self, field_name, array):
-        tmp = np.ascontiguousarray(array, dtype='float64')
-        print('put max(tmp) {}'.format(np.max(tmp)))
+        assert(array.flags['C_CONTIGUOUS'])
+        assert(array.dtype == 'float64')
+
         self.lib.tango_put(field_name,
-                           tmp.ctypes.data_as(ct.POINTER(ct.c_double)),
-                           tmp.size)
+                           array.ctypes.data_as(ct.POINTER(ct.c_double)),
+                           array.size)
 
     def get(self, field_name, array):
-        tmp = np.ascontiguousarray(array, dtype='float64')
+        assert(array.flags['C_CONTIGUOUS'])
+        assert(array.dtype == 'float64')
+
         self.lib.tango_get(field_name,
-                           tmp.ctypes.data_as(ct.POINTER(ct.c_double)),
-                           tmp.size)
-        print('get max(tmp) {}'.format(np.max(tmp)))
+                           array.ctypes.data_as(ct.POINTER(ct.c_double)),
+                           array.size)
 
 
     def end_transfer(self):

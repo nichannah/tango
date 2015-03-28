@@ -69,6 +69,7 @@ void tango_put(const char *field_name, double array[], int size)
              << " grid" << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+
     /* Check that the field size is correct. */
     /*
     if (config->expected_field_size() == size) {
@@ -147,7 +148,7 @@ void tango_end_transfer()
 
             const auto &remote_points = mapping->get_side_A_points();
 
-            int count = remote_points.size() * transfer->fields.size();
+            unsigned int count = remote_points.size() * transfer->fields.size();
             double *send_buf = new double[count];
 
             offset = 0;
@@ -202,7 +203,7 @@ void tango_end_transfer()
 
             const auto& local_points = mapping->get_side_A_points();
 
-            int count = local_points.size() * transfer->fields.size();
+            unsigned int count = local_points.size() * transfer->fields.size();
             double *recv_buf = new double[count];
 
             MPI_Status status;
@@ -219,7 +220,6 @@ void tango_end_transfer()
                     offset++;
                 }
             }
-
             delete[] recv_buf;
         }
     }

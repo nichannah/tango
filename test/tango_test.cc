@@ -74,6 +74,9 @@ TEST(Tango, big_send_receive)
     } else {
         int x = 1440, y = 1080;
         double u[x * y];
+        for (int i = 0; i < x * y; i++) {
+            u[i] = 0;
+        }
 
         tango_init(config_dir.c_str(), "ice", 0, x, 0, y, 0, x, 0, y);
         tango_begin_transfer(0, "atm");
