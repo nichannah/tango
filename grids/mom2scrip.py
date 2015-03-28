@@ -97,9 +97,9 @@ class MomGrid:
         f = nc.Dataset(output, 'w')
 
         if type == 't':
-            self.make_scrip(f, self.x_t, self.x_t, self.clon_t, self.clat_t)
+            self.make_scrip(f, self.x_t, self.y_t, self.clon_t, self.clat_t)
         else:
-            self.make_scrip(f, self.x_u, self.x_u, self.clon_u, self.clat_u)
+            self.make_scrip(f, self.x_u, self.y_u, self.clon_u, self.clat_u)
 
         f.title = 'MOM tripolar {}-cell grid'.format(type)
         f.history = command
