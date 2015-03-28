@@ -58,7 +58,10 @@ class TestRegrid(unittest.TestCase):
         return recv_u
 
 
-    def test_interp(self):
+    def test_2d_interp(self):
+        """
+        Interpolate a 2d field using three different methods and compare.
+        """
         config = os.path.join(self.test_dir,
                               'test_input-regrid_tool-conserve')
         conserve_res = self.run_test(config)
@@ -84,6 +87,12 @@ class TestRegrid(unittest.TestCase):
 
             assert(np.sum(conserve_res - bilinear_res) / np.sum(conserve_res) < 0.001)
             assert(np.sum(conserve_res - patch_res) / np.sum(conserve_res) < 0.1)
+
+    def test_3d_interp(self):
+        """
+        How would we interpolate a 3d field? One level at a time?
+        """
+        pass
 
 
 if __name__ == '__main__':
