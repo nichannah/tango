@@ -64,7 +64,7 @@ void tango_put(const char *field_name, double array[], int size)
     assert(transfer->total_recv_size == 0);
     if (!config->can_send_field_to_grid(string(field_name),
                                         transfer->get_peer_grid())) {
-        cerr << "Error: according to config.yaml " << string(field_name)
+        cerr << "Error: according to config.yaml field " << string(field_name)
              << " can't be put to " << transfer->get_peer_grid()
              << " grid" << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
@@ -87,7 +87,7 @@ void tango_get(const char *field_name, double array[], int size)
     assert(transfer->total_send_size == 0);
     if (!config->can_recv_field_from_grid(string(field_name),
                                           transfer->get_peer_grid())) {
-        cerr << "Error: according to config.yaml " << string(field_name)
+        cerr << "Error: according to config.yaml field " << string(field_name)
              << " can't be get from " << transfer->get_peer_grid() << " grid "
              << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);

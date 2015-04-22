@@ -98,31 +98,27 @@ class TestRegrid(unittest.TestCase):
         config = os.path.join(self.test_dir, 'test_input-regrid_tool-3d')
 
         if self.rank == 0:
+            input = os.path.join(config, 'ocean_1440x1080_temp_salt.res.nc')
+            f = nc.Dataset(input)
+
             # Read in field to to regridded.
             tango = coupler.Tango(config, 'ice', 0, 1440, 0, 1080,
                                                  0, 1440, 0, 1080)
             print('Finished tango init on rank {}'.format(self.rank))
 
-            input = os.path.join(config, 'ocean_1440x1080_temp_salt_res.nc')
-            f = nc.Dataset(input)
-
             for var in ['salt', 'temp']:
                 for l in range(f.variables[var].shape[0]):
                     data = np.array(f.variables[var][l,:,:], dtype='float64')
 
-                    tango.begin_transfer(l, 'ice')
-                    tango.put('data', u)
+                    tango.begin_transfer(l, 'ocn')
+                    tango.put('data', data)
                     tango.end_transfer()
 
             f.close()
 
         else:
-            tango = coupler.Tango(config, 'ocn', 0, 360, 0, 300,
-                                                 0, 360, 0, 300)
-            print('Finished tango init on rank {}'.format(self.rank))
-
-            input = os.path.join(config, 'ocean_1440x1080_temp_salt_res.nc')
-            output = os.path.join(config, 'ocean_360x300_temp_salt_res.nc')
+            input = os.path.join(config, 'ocean_1440x1080_temp_salt.res.nc')
+            output = os.path.join(config, 'ocean_360x300_temp_salt.res.nc')
             f_in = nc.Dataset(input, 'r')
 
             # Create the output, including copying over any attributes from the
@@ -130,23 +126,34 @@ class TestRegrid(unittest.TestCase):
             f_out = nc.Dataset(output, 'w')
             f_out.createDimension('GRID_X_T', 360)
             f_out.createDimension('GRID_Y_T', 300)
-            f_out.createDimension('Z_T', 50)
-            vs = f_out.createVariable('salt', 'f8', ('ZT', 'GRID_Y_T', 'GRID_X_T'))
+            f_out.createDimension('ZT', 50)
+            vs = f_out.createVariable('salt', 'f8', ('ZT', 'GRID_Y_T', 'GRID_X_T'),
+                                      fill_value = f_in.variables['salt']._FillValue)
             for attr_name in f_in.variables['salt'].ncattrs():
+                if attr_name == '_FillValue':
+                    continue
+
                 attr_val = f_in.variables['salt'].getncattr(attr_name)
                 vs.setncattr(attr_name, attr_val)
 
-            vt = f_out.createVariable('temp', 'f8', ('ZT', 'GRID_Y_T', 'GRID_X_T'))
+            vt = f_out.createVariable('temp', 'f8', ('ZT', 'GRID_Y_T', 'GRID_X_T'),
+                                      fill_value = f_in.variables['temp']._FillValue)
             for attr_name in f_in.variables['temp'].ncattrs():
+                if attr_name == '_FillValue':
+                    continue
+
                 attr_val = f_in.variables['temp'].getncattr(attr_name)
                 vs.setncattr(attr_name, attr_val)
 
+            tango = coupler.Tango(config, 'ocn', 0, 360, 0, 300,
+                                                 0, 360, 0, 300)
+            print('Finished tango init on rank {}'.format(self.rank))
             recv_array = np.zeros((300, 360), dtype='float64')
 
             for var in ['salt', 'temp']:
                 for l in range(f_out.variables[var].shape[0]):
                     print('Received regridded field {}'.format(l))
-                    tango.begin_transfer(l, 'ocn')
+                    tango.begin_transfer(l, 'ice')
                     tango.get('data', recv_array)
                     tango.end_transfer()
 
