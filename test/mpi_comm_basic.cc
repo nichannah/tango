@@ -8,3 +8,12 @@ extern "C" int call_mpi_comm_rank(void)
 
     return rank;
 }
+
+extern "C" int call_mpi_comm_size(void)
+{
+    int size;
+
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    return size;
+}

@@ -2,7 +2,7 @@ import os
 
 Import('env')
 
-env.SharedLibrary('libmpicommrank.so', ['mpi_comm_rank.cc'])
+env.SharedLibrary('libmpicommbasic.so', ['mpi_comm_basic.cc'])
 
 libpath = ['#lib', os.path.join(os.environ['HOME'], '.local', 'lib')]
 libs = ['tango', 'gtest_main', 'gtest']
