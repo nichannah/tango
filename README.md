@@ -23,6 +23,8 @@ $ sudo make
 $ sudo mv libg* /usr/lib/
 ```
 
+Download and install [ESMF](https://www.earthsystemcog.org/projects/esmf/), in particular the ESMF_RegridWeightGen program is needed.
+
 Build with:
 ```
 $ scons
