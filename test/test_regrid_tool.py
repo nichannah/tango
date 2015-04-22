@@ -33,7 +33,7 @@ class TestRegrid(unittest.TestCase):
 
     def run_test(self, config):
         """
-        Regrid a single field from CORE to MOM grid.
+        Regrid a single field from CORE sized to MOM sized grid.
         """
 
         recv_u = np.zeros((1080, 1440), dtype='float64')
@@ -90,9 +90,12 @@ class TestRegrid(unittest.TestCase):
 
     def test_3d_interp(self):
         """
-        How would we interpolate a 3d field? One level at a time?
+        This is not really 3d interpolation, but 2d on many levels.
+
+        The test we use is to regrid from 0.25 to 1.0 deg to MOM grid.
         """
-        pass
+
+
 
 
 if __name__ == '__main__':

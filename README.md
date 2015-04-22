@@ -2,7 +2,7 @@
 
 An Earth System Model coupler.
 
-# Getting Started
+# Getting started
 
 ```
 $ sudo apt-get install libnetcdf-dev
@@ -36,6 +36,10 @@ $ mpirun -n 2 ./bin/python-mpi test/test_basic_decomposition.py
 $ cd test
 $ mpirun -n 2 tango_test.exe
 ```
+
+# Running offline
+
+tango can be used to regrid fields offline. This is useful, for example, to test different interpolation schemes before using them in a model.
 
 # Concepts
 

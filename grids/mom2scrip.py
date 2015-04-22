@@ -94,6 +94,8 @@ class MomGrid:
 
     def to_scrip(self, type, output, command):
 
+        assert(type == 't')
+
         f = nc.Dataset(output, 'w')
 
         if type == 't':
@@ -105,6 +107,41 @@ class MomGrid:
         f.history = command
         f.close()
 
+class MomGridOld(MomGrid):
+
+    def __init__(self, grid_def, mask=None):
+
+        with nc.Dataset(grid_def) as f:
+
+            # Select points from double density grid.
+            self.x_t = f.variables['x_T'][:]
+            self.y_t = f.variables['y_T'][:]
+
+            # Corners of t points. Index 0 is bottom left (south west) and then
+            # anti-clockwise.
+            self.clon_t = np.empty((self.x_t.shape[0], self.x_t.shape[1], 4))
+            self.clon_t[:] = np.NAN
+            self.clon_t[:,:,0] = f.variables['x_vert_T'][0, :, :]
+            self.clon_t[:,:,1] = f.variables['x_vert_T'][1, :, :]
+            self.clon_t[:,:,2] = f.variables['x_vert_T'][2, :, :]
+            self.clon_t[:,:,3] = f.variables['x_vert_T'][3, :, :]
+            assert(not np.isnan(np.sum(self.clon_t)))
+
+            self.clat_t = np.empty((self.x_t.shape[0], self.x_t.shape[1], 4))
+            self.clat_t[:] = np.NAN
+            self.clat_t[:,:,0] = f.variables['y_vert_T'][0, :, :]
+            self.clat_t[:,:,1] = f.variables['y_vert_T'][1, :, :]
+            self.clat_t[:,:,2] = f.variables['y_vert_T'][2, :, :]
+            self.clat_t[:,:,3] = f.variables['y_vert_T'][3, :, :]
+            assert(not np.isnan(np.sum(self.clat_t)))
+
+        if mask is None:
+            self.mask = np.zeros((self.x_t.shape[0], self.x_t.shape[1]), dtype=bool)
+        else:
+            with nc.Dataset(mask) as f:
+                self.mask = f.variables['mask'][:]
+
+
 
 def main():
 
@@ -113,6 +150,8 @@ def main():
                         The input file name, must be a MOM grid definition
                         file.""")
     parser.add_argument("output", help="The output file name.")
+    parser.add_argument("--old_grid_spec", action='store_true', default=False,
+                        help="""Use the old grid format.""")
     parser.add_argument("--type", default='t',
                          help="""Whether to use MOM t or u points to make the
                          SCRIP grid.""")
@@ -122,7 +161,10 @@ def main():
     # U grid not supported yet.
     assert(args.type == 't')
 
-    grid = MomGrid(args.input)
+    if args.old_grid_spec:
+        grid = MomGridOld(args.input)
+    else:
+        grid = MomGrid(args.input)
     grid.to_scrip(args.type, args.output, ' '.join(sys.argv))
 
     return 0
