@@ -3,4 +3,5 @@ import os
 Import('env')
 
 env.Program('python-mpi', ['python-mpi.cc'],
+            CPPPATH='/usr/include/python2.7/',
             LIBPATH='/apps/python/2.7.6/lib/', LIBS='python2.7')

@@ -33,7 +33,7 @@ class TestBasicDecomposition(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = os.path.dirname(os.path.realpath(__file__))
-        mpi = ct.cdll.LoadLibrary('test/libmpicommrank.so')
+        mpi = ct.cdll.LoadLibrary('test/libmpicommbasic.so')
         mpi.call_mpi_comm_rank.restype = ct.c_int
         self.rank = mpi.call_mpi_comm_rank()
 

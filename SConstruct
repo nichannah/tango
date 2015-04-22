@@ -1,8 +1,11 @@
 import os
 
-include_paths = [os.environ['OMPI_ROOT'] + '/include/GNU',
-                 os.environ['NETCDF_BASE'] + '/include',
-                 os.environ['HOME'] + '/.local/include/']
+try:
+  include_paths = [os.environ['OMPI_ROOT'] + '/include/GNU',
+                   os.environ['NETCDF_BASE'] + '/include',
+                   os.environ['HOME'] + '/.local/include/']
+except KeyError:
+  include_paths = ['/usr/include']
 
 env = Environment(ENV = os.environ, CXX='mpic++', CC='mpicc',
                   CXXFLAGS=['-std=c++11', '-Wall', '-g', '-O0'],
