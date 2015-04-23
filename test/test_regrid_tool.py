@@ -58,7 +58,7 @@ class TestRegrid(unittest.TestCase):
         return recv_u
 
 
-    def test_2d_interp(self):
+    def test_2d_interp_small_to_big(self):
         """
         Interpolate a 2d field using three different methods and compare.
         """
@@ -88,6 +88,37 @@ class TestRegrid(unittest.TestCase):
             assert(np.sum(conserve_res - bilinear_res) / np.sum(conserve_res) < 0.001)
             assert(np.sum(conserve_res - patch_res) / np.sum(conserve_res) < 0.1)
 
+    def test_2d_interp_big_to_small(self):
+        """
+        Interpolate a 2d field from big to small.
+        """
+
+        config = os.path.join(self.test_dir, 'test_input-regrid_tool-2d')
+
+        if self.rank == 0:
+            # Read in field to to regridded.
+            with nc.Dataset(os.path.join(config, 'temp.nc')) as f:
+                temp = np.array(f.variables['temp'][0,:,:], dtype='float64')
+
+            tango = coupler.Tango(config, 'ice', 0, 1080, 0, 1440, 0, 1080, 0, 1440)
+            tango.begin_transfer(0, 'atm')
+            tango.put('temp', temp)
+            tango.end_transfer()
+
+        else:
+            recv_temp = np.zeros((300, 360), dtype='float64')
+            tango = coupler.Tango(config, 'atm', 0, 300, 0, 360, 0, 300, 0, 360)
+            tango.begin_transfer(0, 'ice')
+            tango.get('temp', recv_temp)
+            tango.end_transfer()
+
+            plt.imshow(recv_temp, origin='lower')
+            plt.savefig(os.path.join(self.test_dir, 'test_interp_2d.png'))
+            plt.close()
+
+        tango.finalize()
+
+
     def test_3d_interp(self):
         """
         This is not really 3d interpolation, but 2d on many levels.
@@ -110,6 +141,7 @@ class TestRegrid(unittest.TestCase):
                 for l in range(f.variables[var].shape[0]):
                     data = np.array(f.variables[var][l,:,:], dtype='float64')
 
+                    print('Send field {}'.format(l))
                     tango.begin_transfer(l, 'ocn')
                     tango.put('data', data)
                     tango.end_transfer()
@@ -152,10 +184,10 @@ class TestRegrid(unittest.TestCase):
 
             for var in ['salt', 'temp']:
                 for l in range(f_out.variables[var].shape[0]):
-                    print('Received regridded field {}'.format(l))
                     tango.begin_transfer(l, 'ice')
                     tango.get('data', recv_array)
                     tango.end_transfer()
+                    print('Received regridded field {}'.format(l))
 
                     f_out.variables[var][l, :, :] = recv_array
 
@@ -163,7 +195,6 @@ class TestRegrid(unittest.TestCase):
             f_in.close()
 
         tango.finalize()
-        return recv_u
 
 
 if __name__ == '__main__':

@@ -33,6 +33,7 @@ void tango_init(const char *config_dir, const char *grid_name,
 
     config = new Config(string(config_dir), string(grid_name));
     config->parse_config();
+    config->read_grid_info();
 
     router = new Router(*config, lis, lie, ljs, lje, gis, gie, gjs, gje);
 }
@@ -60,11 +61,13 @@ void tango_begin_transfer(int time, const char* grid)
 
 void tango_put(const char *field_name, double array[], int size)
 {
+    string field = string(field_name);
+
     assert(transfer != NULL);
     assert(transfer->total_recv_size == 0);
-    if (!config->can_send_field_to_grid(string(field_name),
+    if (!config->can_send_field_to_grid(field,
                                         transfer->get_peer_grid())) {
-        cerr << "Error: according to config.yaml field " << string(field_name)
+        cerr << "Error: according to config.yaml field " << field
              << " can't be put to " << transfer->get_peer_grid()
              << " grid" << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
@@ -72,8 +75,11 @@ void tango_put(const char *field_name, double array[], int size)
 
     /* Check that the field size is correct. */
     /*
-    if (config->expected_field_size() == size) {
-        assert(false);
+    if (config->expected_field_size(field) == size) {
+        cerr << "Error size of " << field
+             << " does not match grid " << config->get_grid_for_field(field)
+             << endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     */
 
@@ -83,18 +89,25 @@ void tango_put(const char *field_name, double array[], int size)
 
 void tango_get(const char *field_name, double array[], int size)
 {
+    string field = string(field_name);
+
     assert(transfer != nullptr);
     assert(transfer->total_send_size == 0);
-    if (!config->can_recv_field_from_grid(string(field_name),
+    if (!config->can_recv_field_from_grid(field,
                                           transfer->get_peer_grid())) {
-        cerr << "Error: according to config.yaml field " << string(field_name)
+        cerr << "Error: according to config.yaml field " << field
              << " can't be get from " << transfer->get_peer_grid() << " grid "
              << endl;
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+
+    /* Check that the field size is correct. */
     /*
-    if (cm->expected_field_size() == size) {
-        assert(false);
+    if (config->expected_field_size(field == size) {
+        cerr << "Error size of " << field
+             << " does not match grid " << config->get_grid_for_field(field)
+             << endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     */
 
@@ -198,7 +211,7 @@ void tango_end_transfer()
              * field.
              *
              * 4) Since many mappings can contribute to a single point we use
-             * += to accumulate all incoming data for that points.
+             * += to accumulate all incoming data for that point.
              */
 
             const auto& local_points = mapping->get_side_A_points();
@@ -220,6 +233,7 @@ void tango_end_transfer()
                     offset++;
                 }
             }
+
             delete[] recv_buf;
         }
     }

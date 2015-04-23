@@ -99,12 +99,9 @@ TEST(Tango, big_send_receive)
 TEST(Tango, send_receive_different_grids)
 {
     int rank;
-    /*
-    int src_len = 50, dest_len = 100;
-    */
-    int src_len = 4, dest_len = 8;
+    int src_len = 8, dest_len = 4;
 
-    string config_dir = "./test_input-1_mappings-2_grids-4x4_to_8x8/";
+    string config_dir = "./test_input-1_mappings-2_grids-8x8_to_4x4/";
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 

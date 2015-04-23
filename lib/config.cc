@@ -39,8 +39,10 @@ void Config::parse_config(void)
         }
 
         if (local_grid_name == recv_grid) {
+            a_peer_grid = send_grid;
             send_grids.insert(send_grid);
         } else if (local_grid_name == send_grid) {
+            a_peer_grid = recv_grid;
             recv_grids.insert(recv_grid);
         } else {
             continue;
@@ -105,6 +107,28 @@ void apply_permutation(vector<T>& vec,
     vec = sorted_vec;
 }
 
+/* Read some information about the local grid from the remapping file. */
+void Config::read_grid_info(void)
+{
+    bool local_is_source = true;
+    this->grid_info_file = config_dir + "/" + local_grid_name + "_to_" +
+                           a_peer_grid + "_rmp.nc";
+    if (!file_exists(this->grid_info_file)) {
+        this->grid_info_file = config_dir + "/" + a_peer_grid + "_to_" +
+                               local_grid_name + "_rmp.nc";
+        assert(file_exists(this->grid_info_file));
+        local_is_source = false;
+    }
+
+    NcFile rmp_file(this->grid_info_file, NcFile::read);
+
+    /* Just get the local grid size. */
+    if (local_is_source) {
+        this->local_grid_size = rmp_file.getDim("n_a").getSize();
+    } else {
+        this->local_grid_size = rmp_file.getDim("n_b").getSize();
+    }
+}
 
 /* Read the weights from the remapping weights file.
  * This method will also sort either the src or dest points in ascending order.
@@ -112,7 +136,6 @@ void apply_permutation(vector<T>& vec,
  * dest and weights matter. i.e. src[0] <-> dest[0] <-> weights[0]. So
  * any changes made to src order also need to be made to dest and
  * weights order. */
-
 void Config::read_weights(string src_grid, string dest_grid,
                           vector<unsigned int>& src_points,
                           vector<unsigned int>& dest_points,

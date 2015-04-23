@@ -89,6 +89,17 @@ Router::Router(const Config& config,
     unique_ptr<Tile> tmp(new Tile(tile_id, lis, lie, ljs, lje, gis, gie, gjs, gje));
     local_tile = move(tmp);
 
+    unsigned int grid_size = ((gie - gis) * (gje - gjs));
+    if (config.get_local_grid_size() != grid_size) {
+        cerr << "Error: global size of grid provided by API does not match "
+             << "size given in remapping file " << config.get_grid_info_file()
+             << endl;
+        cerr << "API says grid '" << config.get_local_grid() << "' size is "
+             << grid_size << " file says size is "
+             << config.get_local_grid_size() << endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
     exchange_descriptions();
     build_routing_rules();
 }
