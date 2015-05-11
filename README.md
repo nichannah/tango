@@ -41,7 +41,7 @@ $ sudo mv libg* /usr/lib/
 
 Download and install [ESMF](https://www.earthsystemcog.org/projects/esmf/), in particular the ESMF_RegridWeightGen program is needed.
 
-Build tango can then be built with:
+tango can then be built with:
 ```
 $ scons
 ```
