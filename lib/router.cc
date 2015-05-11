@@ -266,15 +266,6 @@ void Router::build_routing_rules(void)
     /* Now open the grid remapping files created with ESMF. Use this to
      * populate the mapping graph. */
 
-    /* FIXME: performance is a serious problem here. This loop takes in the
-     * order of minutes (hours?) for a 1000x1000 grid with 2 procs.
-     * Ways to improve performance:
-     * 1. Figure out the maximum number of times a local point can appear as a
-     *    source point, exit loop after this number is reached.
-     * 2. Tune to the particular layout of the remapping file, e.g. it looks
-     *    like the dest points are presented in consecutive order.
-     * 3. Combination of above: and sort points before iterating over them. */
-
     /* Iterate over all the grids that we send to. */
     for (const auto& grid : config.get_send_grids()) {
         vector<unsigned int> src_points;
