@@ -14,7 +14,7 @@ This is a new coupler, it is intended to _very_ _very_ easy to use and understan
 
 Downsides:
 
-* It's not finished, I'm still writing it. e.g. the documentation is very limited, only Python and C/C++ interfaces exists. 
+* It's not finished, I'm still writing it. e.g. the documentation is very limited, only Python and C/C++ interfaces exist presently. 
 
 # Getting started
 
