@@ -13,8 +13,9 @@
 *.a
 a.out
 
-# scons
+# build
 .sconsign.dblite
+build
 
 # Data
 *.nc
