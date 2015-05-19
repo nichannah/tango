@@ -4,7 +4,7 @@ An Earth System Model coupler.
 
 This is a new coupler, it is intended to _very_ _very_ easy to use and understand. Some good things about it:
 
-* C/C++, Python and Fortran interfaces. This means that you can spec out your coupling scheme quickly using Python, or couple together models written in different languages. 
+* C/C++, Python and Fortran interfaces. This means that you can spec out your coupling scheme quickly using Python, or couple together models written in different languages.
 * Regridding weights are made offline using ESMF, this can be run in parallel - essential for large grids.
 * Fully distributed, i.e. N-to-N coupling of independent MPI processes.
 * Excellent performance, all fields between any two models are bundled together and then sent, rather than each field going through MPI individually.

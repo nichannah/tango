@@ -36,7 +36,6 @@ class Tango:
     def put(self, field_name, array):
         assert(array.flags['C_CONTIGUOUS'])
         assert(array.dtype == 'float64')
-
         self.lib.tango_put(field_name,
                            array.ctypes.data_as(ct.POINTER(ct.c_double)),
                            array.size)
@@ -44,11 +43,9 @@ class Tango:
     def get(self, field_name, array):
         assert(array.flags['C_CONTIGUOUS'])
         assert(array.dtype == 'float64')
-
         self.lib.tango_get(field_name,
                            array.ctypes.data_as(ct.POINTER(ct.c_double)),
                            array.size)
-
 
     def end_transfer(self):
         self.lib.tango_end_transfer()
