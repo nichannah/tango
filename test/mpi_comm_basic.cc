@@ -17,3 +17,12 @@ extern "C" int call_mpi_comm_size(void)
 
     return size;
 }
+
+extern "C" int call_mpi_initialized(void)
+{
+    int initialized;
+
+    MPI_Initialized(&initialized);
+
+    return initialized;
+}
