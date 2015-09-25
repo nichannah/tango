@@ -22,7 +22,9 @@ class TestRegrid(unittest.TestCase):
                - it cannot (easily) do 3d fields.
 
     These tests should be called from tango top-level dir with:
+        export PYTHONPATH=$HOME/more_home/tango/lib:$PYTHONPATH
         mpirun -n 2 ./bin/python-mpi test/test_regrid_tool.py
+
     """
 
     def setUp(self):

@@ -49,7 +49,7 @@ $ scons
 To run the tests:
 ```
 $ export LD_LIBRARY_PATH=/usr/local/lib:$HOME/tango/lib:$LD_LIBRARY_PATH
-$ export PYTHONPATH=$HOME/tango/lib:$PYTHONPATH
+$ export PYTHONPATH=$HOME/more_home/tango/lib:$PYTHONPATH
 $ mpirun -n 2 ./bin/python-mpi test/test_basic_decomposition.py
 $ cd test
 $ mpirun -n 2 tango_test.exe
@@ -57,7 +57,7 @@ $ mpirun -n 2 tango_test.exe
 
 # Running offline
 
-tango can be used to regrid fields offline. There is a test case that does this. 
+Tango can be used to regrid fields offline. There is a test case that does this. 
 
 # Concepts
 
