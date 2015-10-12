@@ -14,4 +14,5 @@ test_env = env.Clone(CXXFLAGS=['-std=c++11', '-isystem {}'.format(gtest_include)
 test_env.Append(CPPPATH='#lib')
 
 # Unit tests.
-test_env.Program('tango_test.exe', ['tango_test.cc'])
+test_env.Program('tango_ftest.exe', ['tango_ftest.F90'])
+test_env.Program('tango_ctest.exe', ['tango_ctest.cc'])

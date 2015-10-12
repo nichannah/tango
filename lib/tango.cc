@@ -59,6 +59,7 @@ void tango_begin_transfer(int time, const char* grid)
     transfer = new Transfer(time, string(grid));
 }
 
+/* Use int instead of size_t here to suite Fortran interfaces. */
 void tango_put(const char *field_name, double array[], int size)
 {
     string field = string(field_name);

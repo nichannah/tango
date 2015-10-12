@@ -6,3 +6,8 @@ lib_paths = [os.environ['HOME'] + '/.local/lib/']
 libs = ['netcdf_c++4', 'yaml-cpp']
 
 env.SharedLibrary('libtango.so', ['tango.cc', 'router.cc', 'config.cc'], LIBPATH=lib_paths, LIBS=libs)
+
+mods = ['tango.mod']
+env.Object(mods, ['tango.F90'])
+
+Return('mods')
