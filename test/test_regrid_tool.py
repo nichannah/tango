@@ -4,6 +4,10 @@ from __future__ import print_function
 import sys
 import unittest
 import os
+import tempfile
+import shlex
+import shutil
+import subprocess as sp
 import netCDF4 as nc
 import tango as coupler
 import ctypes as ct
@@ -11,6 +15,10 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../scrip_grids'))
+import mom2scrip
+import square2scrip
 
 class TestRegrid(unittest.TestCase):
     """
@@ -60,7 +68,7 @@ class TestRegrid(unittest.TestCase):
         return recv_u
 
 
-    def test_2d_interp_small_to_big(self):
+    def _test_2d_interp_small_to_big(self):
         """
         Interpolate a 2d field using three different methods and compare.
         """
@@ -90,7 +98,7 @@ class TestRegrid(unittest.TestCase):
             assert(np.sum(conserve_res - bilinear_res) / np.sum(conserve_res) < 0.001)
             assert(np.sum(conserve_res - patch_res) / np.sum(conserve_res) < 0.1)
 
-    def test_2d_interp_big_to_small(self):
+    def _test_2d_interp_big_to_small(self):
         """
         Interpolate a 2d field from big to small.
         """
@@ -121,7 +129,7 @@ class TestRegrid(unittest.TestCase):
         tango.finalize()
 
 
-    def test_3d_interp(self):
+    def _test_3d_interp(self):
         """
         This is not really 3d interpolation, but 2d on many levels.
 
@@ -197,6 +205,81 @@ class TestRegrid(unittest.TestCase):
             f_in.close()
 
         tango.finalize()
+
+    #def make_MOM5_SCRIP_grid(self):
+    #    """
+    #    Make a SCRIP definiton of the MOM5 tri-polar grid.
+#
+#        Returns the path to the grid file.
+#        """
+#
+#        grid_path = '/short/v45/nah599/mom/input/gfdl_nyf_1080/ocean_hgrid.nc'
+#        (_, scrip_path) = tempfile.mkstemp()
+#
+#        grid = mom2scrip.MomGrid(grid_path)
+#        grid.to_scrip('t', scrip_path, '')
+#
+#        return scrip_path
+#
+#    def make_square_SCRIP_grid(self, num_lats, num_lons):
+#        """
+#        Make a SCRIP definiton of a regular square grid.
+#
+#        Returns the path to the grid file.
+#        """
+#
+#        grid = square2scrip.LatLonGrid(num_lats, num_lons, None)
+#        (_, scrip_path) = tempfile.mkstemp()
+#
+#        grid.write('', scrip_path)
+#
+#        return scrip_path
+
+#    def make_remap_grid(self, src_grid, dest_grid, output):
+#        """
+#        Make a remap grid from src and destination grids.
+#        """
+#
+#        cmd = 'ESMF_RegridWeightGen -s {} -d {} -w {} -m conserve'.format(src_grid, dest_grid, output)
+#        sp.call(shlex.split(cmd))
+
+    def test_HadISST_to_MOM5(self):
+        """
+        Remap an SST trend file to MOM5 grid.
+        """
+
+        config = os.path.join(self.test_dir, 'regrid_tool-HadISST_to_MOM5')
+
+        if self.rank == 0:
+            # This is the source, read in the field to be regridded.
+            with nc.Dataset(os.path.join(config, 'SSTTrend_1992to2011.nc')) as f:
+                # Need to flip because this input is strange.
+                data = np.array(np.flipud(f.variables['SST'][:]), dtype='float64')
+
+            tango = coupler.Tango(config, 'src', 0, 360, 0, 180,
+                                                 0, 360, 0, 180)
+            tango.begin_transfer(1, 'dest')
+            tango.put('data', data)
+            tango.end_transfer()
+
+        elif self.rank == 1:
+            # This is the destination, create ouput file containing the regridded field.
+            data = np.zeros((1080, 1440), dtype='float64')
+
+            tango = coupler.Tango(config, 'dest', 0, 1440, 0, 1080,
+                                                 0, 1440, 0, 1080)
+            tango.begin_transfer(1, 'src')
+            tango.get('data', data)
+            tango.end_transfer()
+
+            output = os.path.join(config, 'SSTTrend_1992to2011_mom_grid.nc')
+            f_out = nc.Dataset(output, 'w')
+            f_out.createDimension('lat', 1080)
+            f_out.createDimension('lon', 1440)
+            var = f_out.createVariable('SST', 'f8', ('lat', 'lon'))
+            var[:, :] = data[:, :]
+
+            f_out.close()
 
 
 if __name__ == '__main__':

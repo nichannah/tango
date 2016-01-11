@@ -1,0 +1,5 @@
+
+mappings:
+    - source_grid: src
+      destination_grid: dest
+      fields: [data]

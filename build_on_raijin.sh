@@ -1,7 +1,6 @@
 #!/bin/bash
 
 module purge
-module load python/2.7.6
 module load scons
 module load gcc/4.9.0
 module load intel-fc

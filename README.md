@@ -73,3 +73,11 @@ Peer:
 
 Transfer:
 
+# TODO
+
+- Clean up test directory, e.g. should be able to generate all exchange grids during the test.
+- Is the config file really needed for offline operation?
+- The MPI Python setup is cumbersome and not portable.
+- Perhaps it would be best if tango was moved into a container for testing.
+- Test files need to be on the cloud.
+
