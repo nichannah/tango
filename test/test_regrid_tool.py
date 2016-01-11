@@ -274,10 +274,15 @@ class TestRegrid(unittest.TestCase):
 
             output = os.path.join(config, 'SSTTrend_1992to2011_mom_grid.nc')
             f_out = nc.Dataset(output, 'w')
-            f_out.createDimension('lat', 1080)
-            f_out.createDimension('lon', 1440)
-            var = f_out.createVariable('SST', 'f8', ('lat', 'lon'))
-            var[:, :] = data[:, :]
+            f_out.createDimension('yt_ocean', 1080)
+            f_out.createDimension('xt_ocean', 1440)
+            f_out.createDimension('st_ocean', 50)
+
+            var = f_out.createVariable('temp', 'f8', ('st_ocean', 'yt_ocean', 'xt_ocean'))
+
+            var.long_name = 'Temperature'
+            var[0, :, :] = data[:, :]
+            var[1:, :, :] = 0.0
 
             f_out.close()
 
