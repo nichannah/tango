@@ -9,12 +9,14 @@ import shlex
 import shutil
 import subprocess as sp
 import netCDF4 as nc
-import tango as coupler
 import ctypes as ct
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../lib'))
+import tango as coupler
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../scrip_grids'))
 import mom2scrip
@@ -274,15 +276,37 @@ class TestRegrid(unittest.TestCase):
 
             output = os.path.join(config, 'SSTTrend_1992to2011_mom_grid.nc')
             f_out = nc.Dataset(output, 'w')
-            f_out.createDimension('yt_ocean', 1080)
-            f_out.createDimension('xt_ocean', 1440)
-            f_out.createDimension('st_ocean', 50)
+            grid = nc.Dataset('http://ec2-52-25-62-253.us-west-2.compute.amazonaws.com/ocean_grid.nc')
 
-            var = f_out.createVariable('temp', 'f8', ('st_ocean', 'yt_ocean', 'xt_ocean'))
+            f_out.createDimension('yt_ocean', 1080)
+            yt = f_out.createVariable('yt_ocean', 'f8', ('yt_ocean'))
+            yt_grid = grid.variables['yt_ocean']
+            yt.setncatts({k: yt_grid.getncattr(k) for k in yt_grid.ncattrs()})
+            yt[:] = yt_grid[:]
+
+            f_out.createDimension('xt_ocean', 1440)
+            xt = f_out.createVariable('xt_ocean', 'f8', ('xt_ocean'))
+            xt_grid = grid.variables['xt_ocean']
+            xt.setncatts({k: xt_grid.getncattr(k) for k in xt_grid.ncattrs()})
+            xt[:] = xt_grid[:]
+
+            f_out.createDimension('st_ocean', 50)
+            st = f_out.createVariable('st_ocean', 'f8', ('st_ocean'))
+            st_grid = grid.variables['st_ocean']
+            st.setncatts({k: st_grid.getncattr(k) for k in st_grid.ncattrs()})
+            st[:] = st_grid[:]
+
+            f_out.createDimension('time')
+            time = f_out.createVariable('time', 'f8', ('time'))
+            time.long_name = 'observation time'
+            time.units = 'days since 2001-01-01 00:00:00'
+            time.calendar = 'noleap'
+            time[:] = 0.0
+            var = f_out.createVariable('temp', 'f8', ('time', 'st_ocean', 'yt_ocean', 'xt_ocean'))
 
             var.long_name = 'Temperature'
-            var[0, :, :] = data[:, :]
-            var[1:, :, :] = 0.0
+            var[0, 0, :, :] = data[:, :]
+            var[0, 1:, :, :] = 0.0
 
             f_out.close()
 
