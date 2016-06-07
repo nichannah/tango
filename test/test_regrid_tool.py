@@ -281,19 +281,18 @@ class TestRegrid(unittest.TestCase):
             f_out.createDimension('yt_ocean', 1080)
             yt = f_out.createVariable('yt_ocean', 'f8', ('yt_ocean'))
             yt_grid = grid.variables['yt_ocean']
-            yt.setncatts({k: yt_grid.getncattr(k) for k in yt_grid.ncattrs()})
-            yt[:] = yt_grid[:]
+            yt.setncatts({k: str(yt_grid.getncattr(k)) for k in yt_grid.ncattrs()})
 
             f_out.createDimension('xt_ocean', 1440)
             xt = f_out.createVariable('xt_ocean', 'f8', ('xt_ocean'))
             xt_grid = grid.variables['xt_ocean']
-            xt.setncatts({k: xt_grid.getncattr(k) for k in xt_grid.ncattrs()})
+            xt.setncatts({k: str(xt_grid.getncattr(k)) for k in xt_grid.ncattrs()})
             xt[:] = xt_grid[:]
 
             f_out.createDimension('st_ocean', 50)
             st = f_out.createVariable('st_ocean', 'f8', ('st_ocean'))
             st_grid = grid.variables['st_ocean']
-            st.setncatts({k: st_grid.getncattr(k) for k in st_grid.ncattrs()})
+            st.setncatts({k: str(st_grid.getncattr(k)) for k in st_grid.ncattrs()})
             st[:] = st_grid[:]
 
             f_out.createDimension('time')
