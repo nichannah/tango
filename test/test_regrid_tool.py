@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../lib'))
 import tango as coupler
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../scrip_grids'))
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../grids'))
 import mom2scrip
 import square2scrip
 
@@ -131,7 +131,7 @@ class TestRegrid(unittest.TestCase):
         tango.finalize()
 
 
-    def _test_3d_interp(self):
+    def test_3d_interp(self):
         """
         This is not really 3d interpolation, but 2d on many levels.
 
@@ -164,6 +164,10 @@ class TestRegrid(unittest.TestCase):
             input = os.path.join(config, 'ocean_1440x1080_temp_salt.res.nc')
             output = os.path.join(config, 'ocean_360x300_temp_salt.res.nc')
             f_in = nc.Dataset(input, 'r')
+            try:
+                fill_value = f_in.variables['salt']._FillValue
+            except AttributeError:
+                fill_value = -1.0e34
 
             # Create the output, including copying over any attributes from the
             # input.
@@ -172,7 +176,7 @@ class TestRegrid(unittest.TestCase):
             f_out.createDimension('GRID_Y_T', 300)
             f_out.createDimension('ZT', 50)
             vs = f_out.createVariable('salt', 'f8', ('ZT', 'GRID_Y_T', 'GRID_X_T'),
-                                      fill_value = f_in.variables['salt']._FillValue)
+                                      fill_value = fill_value)
             for attr_name in f_in.variables['salt'].ncattrs():
                 if attr_name == '_FillValue':
                     continue
@@ -181,7 +185,7 @@ class TestRegrid(unittest.TestCase):
                 vs.setncattr(attr_name, attr_val)
 
             vt = f_out.createVariable('temp', 'f8', ('ZT', 'GRID_Y_T', 'GRID_X_T'),
-                                      fill_value = f_in.variables['temp']._FillValue)
+                                      fill_value = fill_value)
             for attr_name in f_in.variables['temp'].ncattrs():
                 if attr_name == '_FillValue':
                     continue
@@ -245,7 +249,7 @@ class TestRegrid(unittest.TestCase):
 #        cmd = 'ESMF_RegridWeightGen -s {} -d {} -w {} -m conserve'.format(src_grid, dest_grid, output)
 #        sp.call(shlex.split(cmd))
 
-    def test_HadISST_to_MOM5(self):
+    def _test_HadISST_to_MOM5(self):
         """
         Remap an SST trend file to MOM5 grid.
         """

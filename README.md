@@ -12,13 +12,9 @@ This is a new coupler, it is intended to _very_ _very_ easy to use and understan
 * About 1000 lines of code, so if something goes wrong you have a hope of figuring it what's happening.
 * The configuration is trivial.
 
-Downsides:
-
-* It's not finished, I'm still writing it. e.g. the documentation is very limited, only Python and C/C++ interfaces exist presently. 
-
 # Getting started
 
-Tango is in development. I wouldn't recommentd using it. It uses libraries extensively in an attempt to reduce the amount of source code. This has worked well, the core library is around 1000 lines of code (LOC). However installing the prerequisites can be difficult. Here's some tips:
+Tango is in development. It uses libraries extensively in an attempt to reduce the amount of source code. This has worked well, the core library is around 1000 lines of code (LOC). However installing the prerequisites can be difficult. Here's some tips:
 
 ```
 $ sudo apt-get install libnetcdf-dev
@@ -72,12 +68,4 @@ Tile:
 Peer:
 
 Transfer:
-
-# TODO
-
-- Clean up test directory, e.g. should be able to generate all exchange grids during the test.
-- Is the config file really needed for offline operation?
-- The MPI Python setup is cumbersome and not portable.
-- Perhaps it would be best if tango was moved into a container for testing.
-- Test files need to be on the cloud.
 
