@@ -14,32 +14,20 @@ This is a new coupler, it is intended to _very_ _very_ easy to use and understan
 
 # Getting started
 
-Tango is in development. It uses libraries extensively in an attempt to reduce the amount of source code. This has worked well, the core library is around 1000 lines of code (LOC). However installing the prerequisites can be difficult. Here's some tips:
+Tango is in development. It uses libraries extensively in an attempt to reduce the amount of source code. This has worked well, the core library is around 1000 lines of code (LOC). However 
 
 ```
-$ sudo apt-get install libnetcdf-dev
-$ sudo apt-get install libboost-dev (needed by libyaml)
+$ sudo apt-get install libnetcdf-c++4-dev
+$ sudo apt-get install libboost-dev (for now, newer versions of libyaml-cpp will not need this).
 $ sudo apt-get install libyaml-cpp-dev
 $ sudo apt-get install libpython-dev
-$ sudo apt-get install scons
-```
-
-Download and install netcdf-cxx4 from https://github.com/Unidata/netcdf-cxx4
-
-Download and install libgtest-dev, e.g.:
-```
-$ sudo apt-get install libgtest-dev
-$ cd /usr/src/gtest
-$ sudo cmake .
-$ sudo make
-$ sudo mv libg* /usr/lib/
 ```
 
 Download and install [ESMF](https://www.earthsystemcog.org/projects/esmf/), in particular the ESMF_RegridWeightGen program is needed.
 
 tango can then be built with:
 ```
-$ scons
+$ make
 ```
 
 To run the tests:

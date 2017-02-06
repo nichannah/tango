@@ -1,14 +1,13 @@
 #pragma once
 
-#include <mpi.h>
-#include <netcdf>
-#include <fstream>
 #include <unordered_set>
 #include <unordered_map>
-#include <yaml-cpp/yaml.h>
+#include <memory>
+#include <string>
+#include <list>
+#include <vector>
 
 using namespace std;
-using namespace netCDF;
 
 class Config
 {
@@ -55,5 +54,4 @@ public:
     bool is_send_grid(string grid) const;
     bool is_recv_grid(string grid) const;
 };
-
 

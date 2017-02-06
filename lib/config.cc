@@ -1,6 +1,14 @@
 
 #include "config.h"
 
+#include <unistd.h>
+#include <yaml-cpp/yaml.h>
+#include <fstream>
+#include <mpi.h>
+#include <netcdf>
+
+using namespace netCDF;
+
 static bool file_exists(string file)
 {
     if (access(file.c_str(), F_OK) == -1) {
@@ -10,7 +18,7 @@ static bool file_exists(string file)
     }
 }
 
-/* Parse yaml config file. Find out which grids communicate and through which
+/* Parse config file. Find out which grids communicate and through which
  * fields. */
 void Config::parse_config(void)
 {
