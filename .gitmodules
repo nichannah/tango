@@ -1,0 +1,3 @@
+[submodule "esmgrids"]
+	path = esmgrids
+	url = https://github.com/DoublePrecision/esmgrids
