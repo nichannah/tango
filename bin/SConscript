@@ -1,8 +1,0 @@
-import os
-
-Import('env')
-
-env.Program('python', ['python-mpi.cc'],
-            CPPPATH=os.environ['HOME'] + '/more_home/anaconda/include/python2.7/',
-            LIBPATH=os.environ['HOME'] + '/more_home/anaconda/lib/',
-            LIBS='python2.7')

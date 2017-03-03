@@ -44,7 +44,7 @@ class LatLonGrid:
 
         def make_corners(x, y, dx, dy):
 
-            # Set grid corners, we do these one corner at a time. Start at the 
+            # Set grid corners, we do these one corner at a time. Start at the
             # bottom left and go anti-clockwise. This is the SCRIP convention.
             clon = np.empty((x.shape[0], x.shape[1], self.corners))
             clon[:] = np.NAN

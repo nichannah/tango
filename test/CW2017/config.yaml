@@ -1,0 +1,5 @@
+
+mappings:
+    - source_grid: atm
+      destination_grid: ice
+      fields: [T_10, U_10, V_10, Q_10, RUNOF]

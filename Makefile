@@ -8,13 +8,16 @@ BUILDDIR=build
 SRCS=$(wildcard lib/*.cc)
 OBJS=$(patsubst lib/%.cc,build/%.o,$(SRCS))
 
-all: dir $(BUILDDIR)/libtango.so
+all: dir $(BUILDDIR)/libtango.so $(BUILDDIR)/libtango.a
 
 dir:
 	mkdir -p $(BUILDDIR)
 
 $(BUILDDIR)/libtango.so: $(OBJS)
-	$(CC) -shared $^ -o $@ $(LDFLAGS) 
+	$(CC) -shared $^ -o $@ $(LDFLAGS)
+
+$(BUILDDIR)/libtango.a: $(OBJS)
+	ar rcs $@ $^
 
 $(OBJS): $(BUILDDIR)/%.o : lib/%.cc
 	$(CC) -c $(CFLAGS) $< -o $@

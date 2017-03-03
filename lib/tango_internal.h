@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <string>
 #include <mpi.h>
 
 using namespace std;
@@ -27,7 +28,7 @@ PendingSend::PendingSend(MPI_Request *request, double *buffer)
 
 class Transfer {
 private:
-    int curr_time;
+    string curr_time;
     /* Name of grid that this transfer is sending/recieving to/from. */
     string peer_grid;
 public:
@@ -36,9 +37,9 @@ public:
     string get_peer_grid(void) const { return peer_grid; }
     list<Field> fields;
     list<PendingSend> pending_sends;
-    Transfer(int time, string peer);
+    Transfer(string timestamp, string peer);
 };
 
-Transfer::Transfer(int time, string peer)
-    : curr_time(time), peer_grid(peer), total_send_size(0), total_recv_size(0) {}
+Transfer::Transfer(string timestamp, string peer)
+    : curr_time(timestamp), peer_grid(peer), total_send_size(0), total_recv_size(0) {}
 

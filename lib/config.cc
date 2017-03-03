@@ -124,7 +124,10 @@ void Config::read_grid_info(void)
     if (!file_exists(this->grid_info_file)) {
         this->grid_info_file = config_dir + "/" + a_peer_grid + "_to_" +
                                local_grid_name + "_rmp.nc";
-        assert(file_exists(this->grid_info_file));
+        if (!file_exists(this->grid_info_file)) {
+            cerr << "Error: cannot find " << this->grid_info_file << endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
         local_is_source = false;
     }
 

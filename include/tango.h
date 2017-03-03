@@ -11,7 +11,8 @@ DLLEXPORT void tango_init(const char *config, const char *grid_name,
                 unsigned int gis, unsigned int gie,
                 unsigned int gjs, unsigned int gje);
 
-DLLEXPORT void tango_begin_transfer(int time, const char* grid_name);
+DLLEXPORT void tango_begin_transfer(const char* timestamp,
+                                    const char* grid_name);
 DLLEXPORT void tango_put(const char* field_name, double array[], int size);
 DLLEXPORT void tango_get(const char* field_name, double array[], int size);
 DLLEXPORT void tango_end_transfer(void);

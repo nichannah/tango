@@ -1,6 +1,7 @@
 
 #include <mpi.h>
 #include <assert.h>
+#include <iostream>
 
 #include "tango.h"
 #include "tango_internal.h"
@@ -31,6 +32,7 @@ void tango_init(const char *config_dir, const char *grid_name,
 {
     transfer = nullptr;
 
+    cout << string(grid_name) << endl;
     config = new Config(string(config_dir), string(grid_name));
     config->parse_config();
     config->read_grid_info();
@@ -53,10 +55,10 @@ static void complete_comms(void)
     }
 }
 
-void tango_begin_transfer(int time, const char* grid)
+void tango_begin_transfer(const char* timestamp, const char* grid)
 {
     complete_comms();
-    transfer = new Transfer(time, string(grid));
+    transfer = new Transfer(timestamp, string(grid));
 }
 
 /* Use int instead of size_t here to suite Fortran interfaces. */
