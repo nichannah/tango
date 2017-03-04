@@ -1,6 +1,6 @@
 
 CC=mpic++
-CFLAGS=-fPIC -std=c++11 -Wall -g -O0 -Iinclude
+CFLAGS=-fPIC -std=c++11 -Wall -g -O2 -Iinclude
 LDFLAGS=-lnetcdf_c++4 -lyaml-cpp
 
 BUILDDIR=build

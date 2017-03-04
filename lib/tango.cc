@@ -32,7 +32,6 @@ void tango_init(const char *config_dir, const char *grid_name,
 {
     transfer = nullptr;
 
-    cout << string(grid_name) << endl;
     config = new Config(string(config_dir), string(grid_name));
     config->parse_config();
     config->read_grid_info();
