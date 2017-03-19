@@ -36,7 +36,6 @@ int main(int argc, char* argv[])
         }
 
         tango_end_transfer();
-        counter++;
     }
     tango_finalize();
     MPI_Finalize();

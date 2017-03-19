@@ -3,8 +3,8 @@
 #include <vector>
 #include "tango.h"
 
-#define NUM_FIELDS 10
-#define NUM_TIMESTEPS 10
+#define NUM_FIELDS 1
+#define NUM_TIMESTEPS 100
 
 using namespace std;
 
