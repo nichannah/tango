@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-#define GROWTH_NUMBER 1024
+#define GROWTH_NUMBER (1024*1024)
 
 using namespace std;
 

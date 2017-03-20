@@ -54,22 +54,6 @@ point_t Tile::global_to_local_domain(point_t global) const
 /* FIXME: override == operator for tiles. */
 bool Tile::domain_equal(const shared_ptr<Tile>& another_tile) const
 {
-    if ((lis == another_tile->lis) && (lie == another_tile->lie) &&
-            (ljs == another_tile->ljs) && (lje == another_tile->lje) &&
-            (gis == another_tile->gis) && (gie == another_tile->gie) &&
-            (gjs == another_tile->gjs) && (gje == another_tile->gje))
-    {
-        cout << "Equal domain at: " << endl;
-        cout << "lis: " << lis << endl;
-        cout << "lie: " << lie << endl;
-        cout << "ljs: " << ljs << endl;
-        cout << "lje: " << lje << endl;
-        cout << "gis: " << gis << endl;
-        cout << "gie: " << gie << endl;
-        cout << "gjs: " << gjs << endl;
-        cout << "gje: " << gje << endl;
-    }
-
     return ((lis == another_tile->lis) && (lie == another_tile->lie) &&
             (ljs == another_tile->ljs) && (lje == another_tile->lje) &&
             (gis == another_tile->gis) && (gie == another_tile->gie) &&
