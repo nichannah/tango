@@ -65,11 +65,6 @@ int main(int argc, char* argv[])
     ljs = my_row*j_per_pe;
     lje = ljs + j_per_pe;
 
-    cout << "my_rank : " << my_rank << endl;
-    cout << "my_row : " << my_row << endl;
-    cout << "my_col : " << my_col << endl;
-    cout << "lis: " << lis << " lie: " << lie << " ljs: " << ljs << " lje: " << lje << endl;
-
     for (int f = 0; f < NUM_FIELDS; f++) {
         fields.push_back(new double[i_per_pe * j_per_pe]);
     }
