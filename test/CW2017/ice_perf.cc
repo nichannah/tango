@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
     }
 
     my_row = int(my_rank / i_pes);
-    my_col = my_rank % j_pes;
+    my_col = my_rank % i_pes;
 
     i_per_pe = int(g_cols / i_pes);
     j_per_pe = int(g_rows / j_pes);
@@ -68,10 +68,7 @@ int main(int argc, char* argv[])
     cout << "my_rank : " << my_rank << endl;
     cout << "my_row : " << my_row << endl;
     cout << "my_col : " << my_col << endl;
-    cout << "lis: " << lis << endl;
-    cout << "lie: " << lie << endl;
-    cout << "ljs: " << ljs << endl;
-    cout << "lje: " << lje << endl;
+    cout << "lis: " << lis << " lie: " << lie << " ljs: " << ljs << " lje: " << lje << endl;
 
     for (int f = 0; f < NUM_FIELDS; f++) {
         fields.push_back(new double[i_per_pe * j_per_pe]);
