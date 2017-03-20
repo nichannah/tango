@@ -19,9 +19,11 @@ int main(int argc, char* argv[])
 
     MPI_Init(&argc, &argv);
 
-    const clock_t begin_time = clock();
+    clock_t begin_time = clock();
     tango_init("./", "atm", 0, l_rows, 0, l_cols, 0, g_rows, 0, g_cols);
+    cout << "Startup: " << float( clock () - begin_time ) /  CLOCKS_PER_SEC << "s" << endl;
 
+    begin_time = clock();
     for (size_t t = 0; t < NUM_TIMESTEPS; t++) {
         cout << "Timestep: " << t << endl;
         tango_begin_transfer("timestamp", "ice");
@@ -33,7 +35,7 @@ int main(int argc, char* argv[])
         tango_end_transfer();
     }
     tango_finalize();
-    cout << float( clock () - begin_time ) /  CLOCKS_PER_SEC << "s" << endl;
+    cout << "Runtime: " << float( clock () - begin_time ) /  CLOCKS_PER_SEC << "s" << endl;
 
     MPI_Finalize();
 
