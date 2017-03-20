@@ -38,6 +38,12 @@ int main(int argc, char* argv[])
     } else if (my_size == 4) {
         i_pes = 2;
         j_pes = 2;
+    } else if (my_size == 12) {
+        i_pes = 4;
+        j_pes = 3;
+    } else if (my_size == 16) {
+        i_pes = 4;
+        j_pes = 4;
     } else if (my_size == 480) {
         i_pes = 24;
         j_pes = 20;
