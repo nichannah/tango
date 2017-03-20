@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-#define GROWTH_NUMBER (1024*1024)
+#define GROWTH_NUMBER (1024)
 
 using namespace std;
 
@@ -68,10 +68,10 @@ private:
      * points to a list of peer points ('side B' points) with an associated
      * weight. The ordering of the side B points is the order in which the
      * weights get applied. The ordering is for numerical consistency. */
-#if defined(MEMORY_CONSCIOUS)
-    unordered_map<point_t, set< pair<point_t, weight_t> > > side_A_to_B_map;
-#else
+#if defined(IMPROVED_RUNTIME_SPEED)
     vector< set< pair<point_t, weight_t> > > side_A_to_B_map;
+#else
+    unordered_map<point_t, set< pair<point_t, weight_t> > > side_A_to_B_map;
 #endif
 
 public:
@@ -79,12 +79,12 @@ public:
     void add_link(point_t side_A_point, point_t side_B_point, weight_t weight)
         {
             side_A_points.insert(side_A_point);
-#if defined(MEMORY_CONSCIOUS)
-            side_A_to_B_map[side_A_point].insert(make_pair(side_B_point, weight));
-#else
+#if defined(IMPROVED_RUNTIME_SPEED)
             if (side_A_to_B_map.size() <= side_A_point) {
                 side_A_to_B_map.resize(side_A_point + GROWTH_NUMBER);
             }
+            side_A_to_B_map[side_A_point].insert(make_pair(side_B_point, weight));
+#else
             side_A_to_B_map[side_A_point].insert(make_pair(side_B_point, weight));
 #endif
         }
@@ -93,12 +93,12 @@ public:
     const set<point_t>& get_side_A_points(void) const { return side_A_points; }
     const set< pair<point_t, weight_t> >& get_side_B(point_t p) const
         {
-#if defined(MEMORY_CONSCIOUS)
+#if defined(IMPROVED_RUNTIME_SPEED)
+            return side_A_to_B_map[p];
+#else
             auto it = side_A_to_B_map.find(p);
             assert(it != side_A_to_B_map.end());
             return it->second;
-#else
-            return side_A_to_B_map[p];
 #endif
         }
 
