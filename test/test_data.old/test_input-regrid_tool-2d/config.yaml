@@ -1,5 +1,0 @@
-
-mappings:
-    - source_grid: ice
-      destination_grid: atm
-      fields: [temp]
